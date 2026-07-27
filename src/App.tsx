@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppBridgeProvider } from "./providers/AppBridgeProvider";
 import HomePage from "./screens/HomePage";
 import JobsPage from "./screens/JobsPage";
+import PocPage from "./screens/PocPage";
 import ProductsPage from "./screens/ProductsPage";
 import SettingsPage from "./screens/SettingsPage";
 import "./styles/shopify.css";
@@ -20,6 +21,7 @@ function AppNav() {
       <a href="/products">Products</a>
       <a href="/jobs">Jobs</a>
       <a href="/settings">Settings</a>
+      <a href="/poc">POC</a>
     </NavMenu>
   );
 }
@@ -34,6 +36,7 @@ function App() {
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/jobs" element={<JobsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/poc" element={<PocPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

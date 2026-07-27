@@ -25,7 +25,8 @@ export function useAuthenticatedFetch() {
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-    if (!headers.has("Content-Type") && options.body) {
+    const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+    if (!headers.has("Content-Type") && options.body && !isFormData) {
       headers.set("Content-Type", "application/json");
     }
 
