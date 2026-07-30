@@ -1,669 +1,650 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import AuthenticatedImage from "../components/poc/AuthenticatedImage";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
+import DataTable from "../components/ui/DataTable";
+import EmptyState from "../components/ui/EmptyState";
+import ErrorBanner from "../components/ui/ErrorBanner";
+import MetricCard from "../components/ui/MetricCard";
+import PageSkeleton from "../components/ui/PageSkeleton";
+import StatusBadge from "../components/ui/StatusBadge";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
+import type {
+  Batch,
+  BatchImage,
+  BatchProduct,
+  PaginationMeta,
+  SecondaryQueueItem,
+  SecondaryQueueSummary,
+} from "../types/week2";
+import { parseApiResponse } from "../utils/api";
+import { formatGid, formatWhen, truncateGid } from "../utils/format";
 
-type QueueSummary = {
-  total: number;
-  pending: number;
-  queued: number;
-  processing: number;
-  completed: number;
-  failed: number;
-  retryPending: number;
-  cancelled?: number;
-  activeBatchCount: number;
-};
-
-type QueueItem = {
+type PickerProduct = {
   id: string;
-  shopifyProductId: string;
-  shopifyMediaId: string;
-  shopifyCdnUrl: string;
-  originalFilename?: string | null;
-  status: string;
-  attemptCount: number;
-  maxAttempts: number;
-  batchId?: string | null;
-  errorMessage?: string | null;
-  outputUrl?: string | null;
-  processingStartedAt?: string | null;
-  processingCompletedAt?: string | null;
-  createdAt: string;
-  attempts?: Array<{
-    id: string;
-    attemptNumber: number;
-    status: string;
-    errorMessage?: string | null;
-    startedAt?: string | null;
-    completedAt?: string | null;
-  }>;
+  title?: string;
 };
 
-type EnqueueResult = {
-  productsRequested: number;
-  productsFound: number;
-  imagesFound: number;
-  imagesQueued: number;
-  duplicatesSkipped: number;
-  errors: Array<{ productId: string; message: string }>;
-};
-
-type ProductOption = {
-  id: string;
-  title: string;
-  handle?: string | null;
-  status?: string | null;
-  imageUrl?: string | null;
-};
-
-const EMPTY_SUMMARY: QueueSummary = {
-  total: 0,
-  pending: 0,
-  queued: 0,
-  processing: 0,
-  completed: 0,
-  failed: 0,
-  retryPending: 0,
-  cancelled: 0,
-  activeBatchCount: 0,
-};
-
-function statusTone(status: string): "success" | "critical" | "caution" | "info" | "neutral" {
-  switch (status) {
-    case "COMPLETED":
-      return "success";
-    case "FAILED":
-      return "critical";
-    case "PROCESSING":
-    case "QUEUED":
-      return "info";
-    case "RETRY_PENDING":
-    case "PENDING":
-      return "caution";
-    default:
-      return "neutral";
-  }
-}
-
-function formatWhen(value?: string | null): string {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString();
-  } catch {
-    return value;
-  }
-}
+const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
+const PAGE_SIZE = 20;
 
 export default function JobsPage() {
   const authenticatedFetch = useAuthenticatedFetch();
-  const [summary, setSummary] = useState<QueueSummary>(EMPTY_SUMMARY);
-  const [items, setItems] = useState<QueueItem[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<ProductOption[]>([]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [pickedProducts, setPickedProducts] = useState<ProductOption[]>([]);
-  const [enqueueResult, setEnqueueResult] = useState<EnqueueResult | null>(null);
-  const [detail, setDetail] = useState<QueueItem | null>(null);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const pollInFlight = useRef(false);
-  const searchTimer = useRef<number | null>(null);
 
-  const hasActive = useMemo(
-    () =>
-      summary.pending > 0 ||
-      summary.queued > 0 ||
-      summary.processing > 0 ||
-      summary.retryPending > 0 ||
-      summary.activeBatchCount > 0,
-    [summary],
+  // Secondary queue
+  const [secondarySummary, setSecondarySummary] = useState<SecondaryQueueSummary | null>(null);
+  const [secondaryItems, setSecondaryItems] = useState<SecondaryQueueItem[]>([]);
+  const [secondaryPagination, setSecondaryPagination] = useState<PaginationMeta | null>(null);
+  const [secondaryStatusFilter, setSecondaryStatusFilter] = useState("");
+  const [secondaryPage, setSecondaryPage] = useState(1);
+
+  // Batches
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [batchesPagination, setBatchesPagination] = useState<PaginationMeta | null>(null);
+  const [batchPage, setBatchPage] = useState(1);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+  const [batchProducts, setBatchProducts] = useState<BatchProduct[]>([]);
+  const [batchImages, setBatchImages] = useState<BatchImage[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // Manual batch
+  const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
+  const [creatingBatch, setCreatingBatch] = useState(false);
+  const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
+  const [pickerUnavailable, setPickerUnavailable] = useState(false);
+
+  // UI state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [retryConfirmOpen, setRetryConfirmOpen] = useState(false);
+  const [retryBusy, setRetryBusy] = useState(false);
+
+  const pollInFlight = useRef(false);
+
+  const hasActiveWork = useMemo(() => {
+    if (!secondarySummary) return false;
+    const secondaryActive = secondarySummary.pending > 0 || secondarySummary.claimed > 0;
+    const batchesActive = batches.some((b) => ACTIVE_BATCH_STATUSES.has(b.status));
+    return secondaryActive || batchesActive;
+  }, [secondarySummary, batches]);
+
+  const loadSecondary = useCallback(
+    async (page: number, statusFilter: string) => {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+      if (statusFilter) params.set("status", statusFilter);
+
+      const [summaryRes, listRes] = await Promise.all([
+        authenticatedFetch(endpoints.secondaryQueueSummary),
+        authenticatedFetch(`${endpoints.secondaryQueueList}?${params}`),
+      ]);
+      const summary = await parseApiResponse<SecondaryQueueSummary>(summaryRes);
+      const list = await parseApiResponse<{ items: SecondaryQueueItem[]; pagination: PaginationMeta }>(
+        listRes,
+      );
+      setSecondarySummary(summary);
+      setSecondaryItems(list.items ?? []);
+      setSecondaryPagination(list.pagination);
+    },
+    [authenticatedFetch],
+  );
+
+  const loadBatches = useCallback(
+    async (page: number) => {
+      const response = await authenticatedFetch(
+        `${endpoints.batchesList}?page=${page}&pageSize=${PAGE_SIZE}`,
+      );
+      const payload = await parseApiResponse<{ items: Batch[]; pagination: PaginationMeta }>(response);
+      setBatches(payload.items ?? []);
+      setBatchesPagination(payload.pagination);
+    },
+    [authenticatedFetch],
   );
 
   const refresh = useCallback(async () => {
     if (pollInFlight.current) return;
     pollInFlight.current = true;
     try {
-      const [summaryRes, listRes] = await Promise.all([
-        authenticatedFetch(endpoints.queueSummary),
-        authenticatedFetch(`${endpoints.queueList}?page=1&pageSize=50&sortBy=created_at&sortDir=desc`),
-      ]);
-      const summaryJson = await summaryRes.json();
-      const listJson = await listRes.json();
-      if (!summaryRes.ok || !summaryJson.success) {
-        throw new Error(summaryJson?.error?.message || "Failed to load summary");
-      }
-      if (!listRes.ok || !listJson.success) {
-        throw new Error(listJson?.error?.message || "Failed to load queue");
-      }
-      setSummary(summaryJson.data as QueueSummary);
-      setItems((listJson.data?.items || []) as QueueItem[]);
+      await Promise.all([loadSecondary(secondaryPage, secondaryStatusFilter), loadBatches(batchPage)]);
       setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh queue");
+      setError(err instanceof Error ? err.message : "Failed to refresh monitoring data");
     } finally {
       pollInFlight.current = false;
+      setLoading(false);
     }
-  }, [authenticatedFetch]);
+  }, [loadSecondary, loadBatches, secondaryPage, secondaryStatusFilter, batchPage]);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
-  useEffect(() => {
-    if (!hasActive) return;
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, 3000);
-    return () => window.clearInterval(timer);
-  }, [hasActive, refresh]);
-
-  useEffect(() => {
-    return () => {
-      if (searchTimer.current) window.clearTimeout(searchTimer.current);
-    };
-  }, []);
-
-  const runProductSearch = useCallback(
-    async (query: string) => {
-      const q = query.trim();
-      if (q.length < 2) {
-        setSearchResults([]);
-        setSearching(false);
-        return;
-      }
-      setSearching(true);
+  const loadBatchDetail = useCallback(
+    async (batchId: string) => {
+      setDetailLoading(true);
       try {
-        const response = await authenticatedFetch(
-          `${endpoints.queueProductSearch}?q=${encodeURIComponent(q)}&limit=20`,
-        );
-        const payload = await response.json();
-        if (!response.ok || !payload.success) {
-          throw new Error(payload?.error?.message || "Product search failed");
-        }
-        setSearchResults((payload.data?.products || []) as ProductOption[]);
-        setSearchOpen(true);
-        setError("");
+        const [productsRes, imagesRes] = await Promise.all([
+          authenticatedFetch(endpoints.batchProducts(batchId)),
+          authenticatedFetch(endpoints.batchImages(batchId)),
+        ]);
+        const productsPayload = await parseApiResponse<{ items: BatchProduct[] }>(productsRes);
+        const imagesPayload = await parseApiResponse<{ items: BatchImage[] }>(imagesRes);
+        setBatchProducts(productsPayload.items ?? []);
+        setBatchImages(imagesPayload.items ?? []);
       } catch (err) {
-        setSearchResults([]);
-        setError(err instanceof Error ? err.message : "Product search failed");
+        setError(err instanceof Error ? err.message : "Failed to load batch detail");
       } finally {
-        setSearching(false);
+        setDetailLoading(false);
       }
     },
     [authenticatedFetch],
   );
 
-  const onSearchChange = (value: string) => {
-    setSearchQuery(value);
-    setSearchOpen(true);
-    if (searchTimer.current) window.clearTimeout(searchTimer.current);
-    searchTimer.current = window.setTimeout(() => {
-      void runProductSearch(value);
-    }, 300);
+  useEffect(() => {
+    if (!hasActiveWork) return;
+    const timer = window.setInterval(() => {
+      void refresh();
+      if (selectedBatchId) void loadBatchDetail(selectedBatchId);
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [hasActiveWork, refresh, selectedBatchId, loadBatchDetail]);
+
+  const openBatchDetail = (batchId: string) => {
+    setSelectedBatchId(batchId);
+    void loadBatchDetail(batchId);
   };
 
-  const addProduct = (product: ProductOption) => {
-    setPickedProducts((prev) => (prev.some((p) => p.id === product.id) ? prev : [...prev, product]));
-    setSearchQuery("");
-    setSearchResults([]);
-    setSearchOpen(false);
-  };
-
-  const removeProduct = (productId: string) => {
-    setPickedProducts((prev) => prev.filter((p) => p.id !== productId));
-  };
-
-  const enqueueProducts = async () => {
-    if (!pickedProducts.length) {
-      setError("Select at least one product from the search results");
+  const openResourcePicker = async () => {
+    setPickerUnavailable(false);
+    setMessage("");
+    const picker = window.shopify?.resourcePicker;
+    if (!picker) {
+      setPickerUnavailable(true);
+      setError(
+        "Resource Picker is unavailable outside Shopify Admin. Open this app embedded in Admin to select products.",
+      );
       return;
     }
-    setBusy(true);
-    setError("");
-    setMessage("");
+
     try {
-      const response = await authenticatedFetch(endpoints.queueEnqueueShopify, {
-        method: "POST",
-        body: JSON.stringify({ productIds: pickedProducts.map((p) => p.id) }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload?.error?.message || "Enqueue failed");
-      }
-      setEnqueueResult(payload.data as EnqueueResult);
-      setMessage(
-        `Queued ${payload.data.imagesQueued} image(s); skipped ${payload.data.duplicatesSkipped} duplicate(s).`,
+      const selected = await picker({ type: "product", multiple: true });
+      if (!selected?.length) return;
+      setPickedProducts(
+        selected.map((p) => ({
+          id: p.id,
+          title: p.title,
+        })),
       );
-      await refresh();
+      setCreatedBatchId(null);
+      setError("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Enqueue failed");
-    } finally {
-      setBusy(false);
+      setError(err instanceof Error ? err.message : "Resource Picker failed");
     }
   };
 
-  const startProcessing = async () => {
-    setStarting(true);
+  const createManualBatch = async () => {
+    if (!pickedProducts.length || creatingBatch) return;
+    setCreatingBatch(true);
     setError("");
     setMessage("");
+    setCreatedBatchId(null);
     try {
-      const response = await authenticatedFetch(endpoints.batchesStart, { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload?.error?.message || "Start processing failed");
-      }
-      if (!payload.data?.batchId) {
-        setMessage(payload.message || "No pending Shopify images are available.");
-      } else {
-        setMessage(`Batch created with ${payload.data.itemCount} item(s).`);
-      }
-      await refresh();
+      const response = await authenticatedFetch(endpoints.batchesManual, {
+        method: "POST",
+        body: JSON.stringify({ productGids: pickedProducts.map((p) => p.id) }),
+      });
+      const batch = await parseApiResponse<Batch>(response);
+      setCreatedBatchId(batch.id);
+      setMessage(`Batch created with ${batch.productCount} product(s) and ${batch.imageCount} image(s).`);
+      setPickedProducts([]);
+      setBatchPage(1);
+      await loadBatches(1);
+      openBatchDetail(batch.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Start processing failed");
+      setError(err instanceof Error ? err.message : "Failed to create batch");
     } finally {
-      window.setTimeout(() => setStarting(false), 600);
+      setCreatingBatch(false);
     }
   };
 
-  const retryFailed = async () => {
-    setBusy(true);
+  const retryFailedInBatch = async () => {
+    if (!selectedBatchId) return;
+    setRetryBusy(true);
     setError("");
     try {
-      const response = await authenticatedFetch(endpoints.queueRetryAllFailed, { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload?.error?.message || "Retry failed");
-      }
-      setMessage(`Scheduled ${payload.data.retriedCount} failed item(s) for retry.`);
-      await refresh();
+      const response = await authenticatedFetch(endpoints.batchRetryFailed(selectedBatchId), {
+        method: "POST",
+      });
+      const payload = await parseApiResponse<{ retriedCount: number }>(response);
+      setMessage(`Queued ${payload.retriedCount} failed product(s) for retry.`);
+      setRetryConfirmOpen(false);
+      await loadBatchDetail(selectedBatchId);
+      await loadBatches(batchPage);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Retry failed");
     } finally {
-      setBusy(false);
+      setRetryBusy(false);
     }
   };
 
-  const retrySelected = async () => {
-    if (!selected.size) return;
-    setBusy(true);
+  const retryProduct = async (productId: string) => {
+    setError("");
     try {
-      const response = await authenticatedFetch(endpoints.queueRetrySelected, {
-        method: "POST",
-        body: JSON.stringify({ itemIds: Array.from(selected) }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload?.error?.message || "Retry selected failed");
-      }
-      setSelected(new Set());
-      setMessage(`Scheduled ${payload.data.retriedCount} selected item(s) for retry.`);
-      await refresh();
+      await parseApiResponse(
+        await authenticatedFetch(endpoints.batchProductRetry(productId), { method: "POST" }),
+      );
+      setMessage("Product queued for retry.");
+      if (selectedBatchId) await loadBatchDetail(selectedBatchId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Retry selected failed");
-    } finally {
-      setBusy(false);
+      setError(err instanceof Error ? err.message : "Product retry failed");
     }
   };
 
-  const openDetail = async (itemId: string) => {
-    try {
-      const response = await authenticatedFetch(endpoints.queueItem(itemId));
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload?.error?.message || "Failed to load item");
-      }
-      setDetail(payload.data as QueueItem);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load item");
-    }
-  };
-
-  const cancelItem = async (itemId: string) => {
-    setBusy(true);
-    try {
-      const response = await authenticatedFetch(endpoints.queueCancelItem(itemId), { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload?.error?.message || "Cancel failed");
-      }
-      setMessage("Item cancelled.");
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Cancel failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
 
   return (
     <s-page heading="Jobs">
-      <s-section heading="Processing queue">
+      <s-section heading="Processing monitor">
         <s-paragraph>
-          Queue Shopify product images, process them in batches, and preview transformed outputs in-app.
-          Shopify product media is not replaced in this phase.
+          Create manual batches from Shopify products, monitor webhook-driven Secondary Queue intake, and
+          track batch progress. No local image uploads in this phase.
         </s-paragraph>
       </s-section>
 
-      {(error || message) && (
+      {error ? (
         <s-section>
-          {error ? (
-            <s-banner tone="critical" heading="Error">
-              <s-paragraph>{error}</s-paragraph>
-            </s-banner>
-          ) : null}
-          {message ? (
-            <s-banner tone="success" heading="Update">
-              <s-paragraph>{message}</s-paragraph>
-            </s-banner>
-          ) : null}
+          <ErrorBanner message={error} onRetry={() => void refresh()} />
         </s-section>
-      )}
+      ) : null}
 
-      <s-section heading="Summary">
-        <div className="jobs-metrics">
-          {[
-            ["Pending", summary.pending, ""],
-            ["Processing", summary.processing, "processing"],
-            ["Completed", summary.completed, "completed"],
-            ["Failed", summary.failed, "failed"],
-            ["Total", summary.total, ""],
-            ["Active batches", summary.activeBatchCount, ""],
-          ].map(([label, value, tone]) => (
-            <div
-              key={String(label)}
-              className={`jobs-metric${tone ? ` jobs-metric--${tone}` : ""}`}
-            >
-              <p className="jobs-metric-label">{label}</p>
-              <p className="jobs-metric-value">{value}</p>
-            </div>
-          ))}
-        </div>
-      </s-section>
+      {message ? (
+        <s-section>
+          <s-banner tone="success" heading="Update">
+            <s-paragraph>{message}</s-paragraph>
+          </s-banner>
+        </s-section>
+      ) : null}
 
-      <s-section heading="Add Shopify product images">
+      <s-section heading="Manual batch creation">
         <s-stack direction="block" gap="base">
           <s-paragraph>
-            Search products by name, select from the dropdown, then add their images to the queue.
+            Select products with the Shopify Resource Picker, then create a product-based processing batch.
           </s-paragraph>
 
-          <div className="jobs-search">
-            <input
-              className="jobs-search-input"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              onFocus={() => setSearchOpen(true)}
-              onBlur={() => {
-                window.setTimeout(() => setSearchOpen(false), 150);
-              }}
-              placeholder="Search products by name…"
-              aria-label="Search Shopify products"
-              autoComplete="off"
-            />
-            {searching ? <p className="jobs-search-hint">Searching…</p> : null}
-            {!searching && searchQuery.trim().length >= 2 && searchOpen && searchResults.length === 0 ? (
-              <p className="jobs-search-hint">No products found</p>
-            ) : null}
-            {searchOpen && searchResults.length > 0 ? (
-              <ul className="jobs-search-dropdown" role="listbox">
-                {searchResults.map((product) => (
-                  <li key={product.id}>
-                    <button
-                      type="button"
-                      className="jobs-search-option"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => addProduct(product)}
-                    >
-                      {product.imageUrl ? (
-                        <img className="jobs-search-thumb" src={product.imageUrl} alt="" />
-                      ) : (
-                        <div className="jobs-search-thumb-placeholder" />
-                      )}
-                      <span className="jobs-search-copy">
-                        <span className="jobs-search-title">{product.title}</span>
-                        <span className="jobs-search-meta">{product.handle || product.id}</span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+          {pickerUnavailable ? (
+            <s-banner tone="warning" heading="Resource Picker unavailable">
+              <s-paragraph>
+                Open this app inside Shopify Admin to use the native product picker. Product GIDs are
+                required for manual batches.
+              </s-paragraph>
+            </s-banner>
+          ) : null}
+
+          <div className="aone-toolbar">
+            <s-button variant="primary" onClick={() => void openResourcePicker()} disabled={creatingBatch}>
+              Select products
+            </s-button>
+            <s-button
+              variant="primary"
+              onClick={() => void createManualBatch()}
+              disabled={creatingBatch || pickedProducts.length === 0}
+            >
+              {creatingBatch ? "Creating…" : "Create batch"}
+            </s-button>
+            {pickedProducts.length > 0 ? (
+              <s-badge tone="info">{pickedProducts.length} selected</s-badge>
             ) : null}
           </div>
 
           {pickedProducts.length > 0 ? (
-            <div className="jobs-chips">
+            <div className="aone-chip-list">
               {pickedProducts.map((product) => (
-                <div key={product.id} className="jobs-chip">
-                  <p className="jobs-chip-label" title={product.title}>
-                    {product.title}
-                  </p>
+                <span key={product.id} className="aone-chip">
+                  {product.title ?? formatGid(product.id)}
                   <button
                     type="button"
-                    className="jobs-chip-remove"
-                    aria-label={`Remove ${product.title}`}
-                    onClick={() => removeProduct(product.id)}
+                    className="aone-field-hint"
+                    aria-label={`Remove ${product.title ?? product.id}`}
+                    onClick={() =>
+                      setPickedProducts((prev) => prev.filter((p) => p.id !== product.id))
+                    }
                   >
                     ×
                   </button>
-                </div>
+                </span>
               ))}
             </div>
           ) : null}
 
-          <div className="jobs-toolbar">
-            <s-button
-              variant="primary"
-              onClick={() => void enqueueProducts()}
-              disabled={busy || pickedProducts.length === 0}
-            >
-              Add product images to queue
-            </s-button>
-            <s-button variant="primary" onClick={() => void startProcessing()} disabled={starting}>
-              Start processing
-            </s-button>
-            <s-button onClick={() => void retryFailed()} disabled={busy || summary.failed === 0}>
-              Retry failed
-            </s-button>
-            <s-button onClick={() => void retrySelected()} disabled={busy || selected.size === 0}>
-              Retry selected
-            </s-button>
-            <s-button onClick={() => void refresh()} disabled={busy}>
-              Refresh
-            </s-button>
-          </div>
-
-          {enqueueResult ? (
-            <div className="jobs-stats-grid">
-              {[
-                ["Products requested", enqueueResult.productsRequested],
-                ["Products found", enqueueResult.productsFound],
-                ["Images found", enqueueResult.imagesFound],
-                ["Images queued", enqueueResult.imagesQueued],
-                ["Duplicates skipped", enqueueResult.duplicatesSkipped],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="jobs-stat">
-                  <span className="jobs-stat-label">{label}</span>
-                  <span className="jobs-stat-value">{value}</span>
-                </div>
-              ))}
-              {enqueueResult.errors?.length ? (
-                <div className="jobs-stat" style={{ gridColumn: "1 / -1" }}>
-                  <span className="jobs-stat-label">Errors</span>
-                  <s-text tone="critical">
-                    {enqueueResult.errors.map((e) => `${e.productId}: ${e.message}`).join("; ")}
-                  </s-text>
-                </div>
-              ) : null}
-            </div>
+          {createdBatchId ? (
+            <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
+              <s-text>
+                Batch ID: <code className="aone-mono">{createdBatchId}</code>
+              </s-text>
+            </s-box>
           ) : null}
         </s-stack>
       </s-section>
 
-      <s-section heading="Queue">
-        <div className="jobs-table-wrap">
-          <table className="jobs-table">
-            <thead>
-              <tr>
-                {[
-                  "",
-                  "Product",
-                  "Image",
-                  "Media ID",
-                  "Batch",
-                  "Status",
-                  "Attempts",
-                  "Added",
-                  "Started",
-                  "Completed",
-                  "Error",
-                  "Actions",
-                ].map((h) => (
-                  <th key={h || "select"}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td className="jobs-table-empty" colSpan={12}>
-                    No queue items yet. Search and select Shopify products to get started.
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(item.id)}
-                        onChange={() => toggleSelect(item.id)}
-                        aria-label={`Select ${item.shopifyProductId}`}
-                      />
-                    </td>
-                    <td>
-                      <code className="jobs-mono">{item.shopifyProductId}</code>
-                    </td>
-                    <td>{item.originalFilename || "—"}</td>
-                    <td>
-                      <code className="jobs-mono">{item.shopifyMediaId}</code>
-                    </td>
-                    <td>{item.batchId ? String(item.batchId).slice(0, 8) : "—"}</td>
-                    <td>
-                      <s-badge tone={statusTone(item.status)}>{item.status}</s-badge>
-                    </td>
-                    <td>
-                      {item.attemptCount}/{item.maxAttempts}
-                    </td>
-                    <td>{formatWhen(item.createdAt)}</td>
-                    <td>{formatWhen(item.processingStartedAt)}</td>
-                    <td>{formatWhen(item.processingCompletedAt)}</td>
-                    <td className="jobs-error-cell" title={item.errorMessage || undefined}>
-                      {item.errorMessage || "—"}
-                    </td>
-                    <td>
-                      <div className="jobs-toolbar">
-                        <s-button onClick={() => void openDetail(item.id)}>Details</s-button>
-                        {item.status === "FAILED" ? (
-                          <s-button
-                            onClick={() => {
-                              void (async () => {
-                                setBusy(true);
-                                try {
-                                  const response = await authenticatedFetch(
-                                    endpoints.queueRetryItem(item.id),
-                                    { method: "POST" },
-                                  );
-                                  const payload = await response.json();
-                                  if (!response.ok || !payload.success) {
-                                    throw new Error(payload?.error?.message || "Retry failed");
-                                  }
-                                  setMessage("Item scheduled for retry.");
-                                  await refresh();
-                                } catch (err) {
-                                  setError(err instanceof Error ? err.message : "Retry failed");
-                                } finally {
-                                  setBusy(false);
-                                }
-                              })();
-                            }}
-                          >
-                            Retry
-                          </s-button>
-                        ) : null}
-                        {item.status === "PENDING" || item.status === "RETRY_PENDING" ? (
-                          <s-button tone="critical" onClick={() => void cancelItem(item.id)}>
-                            Cancel
-                          </s-button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </s-section>
-
-      {detail ? (
-        <s-section heading="Queue item details">
+      <div id="secondary-queue" className="aone-section-anchor">
+      <s-section heading="Secondary Queue">
+        {loading && !secondarySummary ? (
+          <PageSkeleton metricCount={5} tableRows={4} />
+        ) : (
           <s-stack direction="block" gap="base">
-            <s-button onClick={() => setDetail(null)}>Close</s-button>
-            <s-text>ID: {detail.id}</s-text>
-            <s-text>Status: {detail.status}</s-text>
-            <s-text>Product: {detail.shopifyProductId}</s-text>
-            <s-text>Media: {detail.shopifyMediaId}</s-text>
-            <s-text>
-              Attempts: {detail.attemptCount}/{detail.maxAttempts}
-            </s-text>
-            {detail.errorMessage ? <s-text tone="critical">Error: {detail.errorMessage}</s-text> : null}
-            <div className="jobs-detail-grid">
-              <div className="jobs-detail-card">
-                <s-heading>Source (Shopify CDN)</s-heading>
-                <a href={detail.shopifyCdnUrl} target="_blank" rel="noreferrer">
-                  Open original
-                </a>
-                <img className="jobs-detail-image" src={detail.shopifyCdnUrl} alt="Shopify source" />
-              </div>
-              {detail.status === "COMPLETED" ? (
-                <div className="jobs-detail-card">
-                  <s-heading>Processed output</s-heading>
-                  <AuthenticatedImage
-                    src={endpoints.queueItemOutput(detail.id)}
-                    alt="Processed output"
-                  />
-                </div>
-              ) : null}
+            <div className="aone-metrics">
+              <MetricCard label="Pending" value={secondarySummary?.pending ?? 0} badgeTone="caution" badgeLabel="Awaiting" />
+              <MetricCard label="Claimed" value={secondarySummary?.claimed ?? 0} badgeTone="info" badgeLabel="In progress" />
+              <MetricCard label="Converted" value={secondarySummary?.converted ?? 0} badgeTone="success" badgeLabel="Done" />
+              <MetricCard label="Skipped" value={secondarySummary?.skipped ?? 0} badgeTone="neutral" badgeLabel="No delta" />
+              <MetricCard label="Failed" value={secondarySummary?.failed ?? 0} badgeTone="critical" badgeLabel="Errors" />
             </div>
-            {detail.attempts?.length ? (
-              <div className="jobs-detail-card">
-                <s-heading>Attempt history</s-heading>
-                <s-stack direction="block" gap="small">
-                  {detail.attempts.map((a) => (
-                    <s-text key={a.id}>
-                      #{a.attemptNumber} {a.status}
-                      {a.errorMessage ? ` — ${a.errorMessage}` : ""}
-                    </s-text>
-                  ))}
-                </s-stack>
+
+            <div className="aone-toolbar aone-toolbar-spread">
+              <div className="aone-field-group" style={{ maxWidth: 220 }}>
+                <label className="aone-field-label" htmlFor="sq-status">
+                  Status filter
+                </label>
+                <select
+                  id="sq-status"
+                  className="aone-select"
+                  value={secondaryStatusFilter}
+                  onChange={(e) => {
+                    setSecondaryStatusFilter(e.target.value);
+                    setSecondaryPage(1);
+                  }}
+                >
+                  <option value="">All statuses</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="CLAIMED">Claimed</option>
+                  <option value="CONVERTED">Converted</option>
+                  <option value="SKIPPED_NO_ELIGIBLE_IMAGE_DELTA">Skipped</option>
+                  <option value="FAILED_CONVERSION">Failed</option>
+                </select>
+              </div>
+              <s-button onClick={() => void refresh()}>Refresh</s-button>
+            </div>
+
+            {secondaryItems.length === 0 ? (
+              <EmptyState
+                title="Secondary Queue is empty"
+                description="Webhook-driven product updates will appear here when eligible changes are received."
+              />
+            ) : (
+              <>
+                <DataTable>
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Revision</th>
+                      <th>Webhooks</th>
+                      <th>First queued</th>
+                      <th>Last queued</th>
+                      <th>Status</th>
+                      <th>Skip / failure</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {secondaryItems.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
+                          <br />
+                          <code className="aone-mono" title={item.shopifyProductGid}>
+                            {truncateGid(item.shopifyProductGid)}
+                          </code>
+                        </td>
+                        <td>{item.queueRevision}</td>
+                        <td>{item.webhookCount}</td>
+                        <td>{formatWhen(item.firstQueuedAt)}</td>
+                        <td>{formatWhen(item.lastQueuedAt)}</td>
+                        <td>
+                          <StatusBadge status={item.status} />
+                        </td>
+                        <td className="aone-table-cell-truncate" title={item.skipReason ?? item.failureReason ?? undefined}>
+                          {item.skipReason ?? item.failureReason ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTable>
+
+                {secondaryPagination ? (
+                  <div className="aone-pagination">
+                    <p className="aone-pagination-meta">
+                      Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
+                      {secondaryPagination.totalItems} items
+                    </p>
+                    <div className="aone-toolbar">
+                      <s-button
+                        disabled={secondaryPage <= 1}
+                        onClick={() => setSecondaryPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </s-button>
+                      <s-button
+                        disabled={secondaryPage >= (secondaryPagination.totalPages || 1)}
+                        onClick={() => setSecondaryPage((p) => p + 1)}
+                      >
+                        Next
+                      </s-button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </s-stack>
+        )}
+      </s-section>
+      </div>
+
+      <s-section heading="Batches">
+        {loading && batches.length === 0 ? (
+          <PageSkeleton metricCount={0} tableRows={4} />
+        ) : batches.length === 0 ? (
+          <EmptyState
+            title="No batches yet"
+            description="Create a manual batch above or enable Auto Sync in Settings to process Secondary Queue items."
+          />
+        ) : (
+          <>
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Trigger</th>
+                  <th>Status</th>
+                  <th>Products</th>
+                  <th>Images</th>
+                  <th>Completed</th>
+                  <th>Failed</th>
+                  <th>Retrying</th>
+                  <th>Created</th>
+                  <th>Completed at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map((batch) => (
+                  <tr
+                    key={batch.id}
+                    className={`aone-table-row-clickable${selectedBatchId === batch.id ? " aone-table-row-selected" : ""}`}
+                    onClick={() => openBatchDetail(batch.id)}
+                  >
+                    <td>
+                      <code className="aone-mono">{batch.id.slice(0, 8)}</code>
+                    </td>
+                    <td>
+                      <StatusBadge status={batch.triggerType} />
+                    </td>
+                    <td>
+                      <StatusBadge status={batch.status} />
+                    </td>
+                    <td>{batch.productCount}</td>
+                    <td>{batch.imageCount}</td>
+                    <td>{batch.completedProductCount}</td>
+                    <td>{batch.failedProductCount}</td>
+                    <td>{batch.retryingProductCount}</td>
+                    <td>{formatWhen(batch.createdAt)}</td>
+                    <td>{formatWhen(batch.completedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+
+            {batchesPagination ? (
+              <div className="aone-pagination">
+                <p className="aone-pagination-meta">
+                  Page {batchesPagination.page} of {batchesPagination.totalPages || 1}
+                </p>
+                <div className="aone-toolbar">
+                  <s-button
+                    disabled={batchPage <= 1}
+                    onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </s-button>
+                  <s-button
+                    disabled={batchPage >= (batchesPagination.totalPages || 1)}
+                    onClick={() => setBatchPage((p) => p + 1)}
+                  >
+                    Next
+                  </s-button>
+                </div>
               </div>
             ) : null}
-          </s-stack>
+          </>
+        )}
+      </s-section>
+
+      {selectedBatchId && selectedBatch ? (
+        <s-section heading="Batch detail">
+          <div className="aone-detail-panel">
+            <div className="aone-detail-header">
+              <s-stack direction="block" gap="small">
+                <s-text>
+                  Batch <code className="aone-mono">{selectedBatchId}</code>
+                </s-text>
+                <s-stack direction="inline" gap="small">
+                  <StatusBadge status={selectedBatch.triggerType} />
+                  <StatusBadge status={selectedBatch.status} />
+                </s-stack>
+                {selectedBatch.errorSummary ? (
+                  <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
+                ) : null}
+              </s-stack>
+              <div className="aone-toolbar">
+                {selectedBatch.failedProductCount > 0 ? (
+                  <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
+                    Retry failed
+                  </s-button>
+                ) : null}
+                <s-button onClick={() => setSelectedBatchId(null)}>Close</s-button>
+              </div>
+            </div>
+
+            {detailLoading ? (
+              <PageSkeleton metricCount={0} tableRows={3} />
+            ) : (
+              <s-stack direction="block" gap="base">
+                <s-heading>Products</s-heading>
+                {batchProducts.length === 0 ? (
+                  <EmptyState title="No products" description="This batch has no product records." />
+                ) : (
+                  <DataTable>
+                    <thead>
+                      <tr>
+                        <th>Product GID</th>
+                        <th>Status</th>
+                        <th>Images</th>
+                        <th>Retries</th>
+                        <th>Error</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchProducts.map((product) => (
+                        <tr key={product.id}>
+                          <td>
+                            <code className="aone-mono" title={product.shopifyProductGid}>
+                              {truncateGid(product.shopifyProductGid)}
+                            </code>
+                          </td>
+                          <td>
+                            <StatusBadge status={product.status} />
+                          </td>
+                          <td>{product.imageCount}</td>
+                          <td>{product.retryCount}</td>
+                          <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
+                            {product.errorMessage ?? "—"}
+                          </td>
+                          <td>
+                            {product.status === "FAILED" ? (
+                              <s-button onClick={() => void retryProduct(product.id)}>Retry</s-button>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                )}
+
+                <s-heading>Images</s-heading>
+                {batchImages.length === 0 ? (
+                  <EmptyState title="No images" description="This batch has no image work items." />
+                ) : (
+                  <DataTable>
+                    <thead>
+                      <tr>
+                        <th>Media GID</th>
+                        <th>Delta</th>
+                        <th>Status</th>
+                        <th>Attempts</th>
+                        <th>Error</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {batchImages.map((image) => (
+                        <tr key={image.id}>
+                          <td>
+                            <code className="aone-mono" title={image.shopifyMediaGid}>
+                              {truncateGid(image.shopifyMediaGid)}
+                            </code>
+                          </td>
+                          <td>
+                            <StatusBadge status={image.deltaType} />
+                          </td>
+                          <td>
+                            <StatusBadge status={image.status} />
+                          </td>
+                          <td>{image.attemptCount}</td>
+                          <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
+                            {image.errorMessage ?? "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DataTable>
+                )}
+              </s-stack>
+            )}
+          </div>
         </s-section>
       ) : null}
+
+      <ConfirmDialog
+        open={retryConfirmOpen}
+        title="Retry failed products"
+        message="Queue all failed products in this batch for another processing attempt?"
+        confirmLabel="Retry failed"
+        tone="critical"
+        busy={retryBusy}
+        onConfirm={() => void retryFailedInBatch()}
+        onCancel={() => setRetryConfirmOpen(false)}
+      />
     </s-page>
   );
 }
