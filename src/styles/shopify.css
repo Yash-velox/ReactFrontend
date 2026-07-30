@@ -1,4 +1,26 @@
-/* Minimal reset — visual design comes from Polaris web components */
+/* Aone Content — token-based layout layer for Polaris web components */
+
+:root {
+  --aone-text: var(--p-color-text, #202223);
+  --aone-text-subdued: var(--p-color-text-secondary, #6d7175);
+  --aone-border: var(--p-color-border, #e1e3e5);
+  --aone-bg: var(--p-color-bg-surface, #ffffff);
+  --aone-bg-subdued: var(--p-color-bg-surface-secondary, #f6f6f7);
+  --aone-focus: var(--p-color-border-focus, #005bd3);
+
+  --aone-space-1: 4px;
+  --aone-space-2: 8px;
+  --aone-space-3: 12px;
+  --aone-space-4: 16px;
+  --aone-space-5: 20px;
+  --aone-space-6: 24px;
+  --aone-space-8: 32px;
+
+  --aone-radius-sm: 8px;
+  --aone-radius-md: 12px;
+  --aone-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 html,
 body,
 #root {
@@ -8,13 +30,384 @@ body,
 
 body {
   -webkit-font-smoothing: antialiased;
+  color: var(--aone-text);
 }
 
-/* POC image comparison gallery */
+/* Focus — visible outlines, no !important */
+:focus-visible {
+  outline: 2px solid var(--aone-focus);
+  outline-offset: 2px;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--aone-focus);
+  outline-offset: 2px;
+}
+
+/* Metrics grid */
+.aone-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--aone-space-3);
+}
+
+.aone-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-2);
+  padding: var(--aone-space-4);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
+  min-height: 88px;
+  box-sizing: border-box;
+}
+
+.aone-metric-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  color: var(--aone-text-subdued);
+  text-transform: uppercase;
+}
+
+.aone-metric-value {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.1;
+  color: var(--aone-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.aone-metric-footer {
+  margin-top: auto;
+}
+
+/* Tables */
+.aone-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
+  -webkit-overflow-scrolling: touch;
+}
+
+.aone-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.aone-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: var(--aone-space-3) var(--aone-space-4);
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--aone-text-subdued);
+  background: var(--aone-bg-subdued);
+  border-bottom: 1px solid var(--aone-border);
+  white-space: nowrap;
+}
+
+.aone-table tbody td {
+  padding: var(--aone-space-3) var(--aone-space-4);
+  border-bottom: 1px solid var(--aone-border);
+  vertical-align: middle;
+  color: var(--aone-text);
+}
+
+.aone-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.aone-table tbody tr:hover td {
+  background: var(--aone-bg-subdued);
+}
+
+.aone-table-row-clickable {
+  cursor: pointer;
+}
+
+.aone-table-row-selected td {
+  background: color-mix(in srgb, var(--aone-focus) 8%, var(--aone-bg));
+}
+
+.aone-table-cell-truncate {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Skeleton shimmer */
+@keyframes aone-shimmer {
+  0% {
+    background-position: -468px 0;
+  }
+  100% {
+    background-position: 468px 0;
+  }
+}
+
+.aone-skeleton {
+  display: block;
+  border-radius: var(--aone-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--aone-bg-subdued) 0%,
+    color-mix(in srgb, var(--aone-border) 40%, var(--aone-bg-subdued)) 50%,
+    var(--aone-bg-subdued) 100%
+  );
+  background-size: 936px 100%;
+  animation: aone-shimmer 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aone-skeleton {
+    animation: none;
+    background: var(--aone-bg-subdued);
+  }
+}
+
+.aone-skeleton-metric {
+  height: 88px;
+}
+
+.aone-skeleton-line {
+  height: 14px;
+  margin-bottom: var(--aone-space-2);
+}
+
+.aone-skeleton-line-short {
+  width: 60%;
+}
+
+.aone-skeleton-table-row {
+  height: 44px;
+  margin-bottom: var(--aone-space-1);
+}
+
+/* Empty state */
+.aone-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--aone-space-3);
+  padding: var(--aone-space-8) var(--aone-space-4);
+  text-align: center;
+  border: 1px dashed var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg-subdued);
+}
+
+.aone-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--aone-text);
+}
+
+.aone-empty-description {
+  margin: 0;
+  max-width: 420px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--aone-text-subdued);
+}
+
+/* Toolbar */
+.aone-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aone-space-2);
+  align-items: center;
+}
+
+.aone-toolbar-spread {
+  justify-content: space-between;
+}
+
+/* Monospace / GIDs */
+.aone-mono {
+  font-family: var(--aone-font-mono);
+  font-size: 11px;
+  color: var(--aone-text-subdued);
+  word-break: break-all;
+}
+
+/* Transparency checkerboard */
+.aone-checkerboard {
+  background-color: var(--aone-bg-subdued);
+  background-image:
+    linear-gradient(45deg, #dfe3e8 25%, transparent 25%),
+    linear-gradient(-45deg, #dfe3e8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #dfe3e8 75%),
+    linear-gradient(-45deg, transparent 75%, #dfe3e8 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  border-radius: var(--aone-radius-sm);
+}
+
+/* Form fields */
+.aone-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-1);
+  max-width: 320px;
+}
+
+.aone-field-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--aone-text);
+}
+
+.aone-field-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--aone-text-subdued);
+}
+
+.aone-input,
+.aone-select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  height: 36px;
+  padding: 0 var(--aone-space-3);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-sm);
+  background: var(--aone-bg);
+  color: var(--aone-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.aone-input:hover,
+.aone-select:hover {
+  border-color: color-mix(in srgb, var(--aone-text-subdued) 60%, var(--aone-border));
+}
+
+.aone-input:focus,
+.aone-select:focus {
+  border-color: var(--aone-focus);
+  box-shadow: 0 0 0 1px var(--aone-focus);
+  outline: none;
+}
+
+.aone-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aone-space-2);
+}
+
+.aone-checkbox-row input {
+  margin-top: 2px;
+}
+
+/* Pagination */
+.aone-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aone-space-3);
+  padding-top: var(--aone-space-3);
+}
+
+.aone-pagination-meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--aone-text-subdued);
+}
+
+/* Detail panel */
+.aone-detail-panel {
+  padding: var(--aone-space-4);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
+}
+
+.aone-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aone-space-3);
+  margin-bottom: var(--aone-space-4);
+}
+
+.aone-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--aone-space-2);
+}
+
+.aone-stat {
+  padding: var(--aone-space-2) var(--aone-space-3);
+  border-radius: var(--aone-radius-sm);
+  background: var(--aone-bg-subdued);
+  border: 1px solid var(--aone-border);
+}
+
+.aone-stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--aone-text-subdued);
+  margin-bottom: 2px;
+}
+
+.aone-stat-value {
+  font-size: 15px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.aone-section-anchor {
+  scroll-margin-top: var(--aone-space-6);
+}
+
+.aone-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aone-space-2);
+}
+
+.aone-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aone-space-2);
+  padding: var(--aone-space-1) var(--aone-space-3);
+  border: 1px solid var(--aone-border);
+  border-radius: 999px;
+  background: var(--aone-bg-subdued);
+  font-size: 13px;
+}
+
+/* POC — minimal overrides, no fixed min-width overflow */
 .poc-gallery {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--aone-space-4);
   align-items: flex-start;
 }
 
@@ -22,11 +415,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: 200px;
-  padding: 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 12px;
-  background: #ffffff;
+  width: min(200px, 100%);
+  padding: var(--aone-space-3);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
   box-sizing: border-box;
 }
 
@@ -35,17 +428,16 @@ body {
   font-size: 13px;
   font-weight: 650;
   line-height: 1.3;
-  color: #202223;
-  letter-spacing: 0.01em;
+  color: var(--aone-text);
 }
 
 .poc-gallery-frame {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: var(--aone-radius-sm);
   overflow: hidden;
-  background: #f6f6f7;
-  border: 1px solid #e3e3e3;
+  background: var(--aone-bg-subdued);
+  border: 1px solid var(--aone-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,8 +454,8 @@ body {
 .poc-original-preview {
   max-width: 280px;
   width: 100%;
-  border-radius: 8px;
-  border: 1px solid #dcdcdc;
+  border-radius: var(--aone-radius-sm);
+  border: 1px solid var(--aone-border);
   display: block;
 }
 
@@ -71,361 +463,24 @@ body {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-width: 520px;
+  min-width: 0;
   max-width: 100%;
   min-height: 120px;
-  padding: 10px 12px;
-  border: 1px solid #c9cccf;
-  border-radius: 8px;
+  padding: 10px var(--aone-space-3);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-sm);
   font: inherit;
   line-height: 1.45;
   resize: vertical;
   overflow-y: hidden;
 }
 
-@media (max-width: 560px) {
-  .poc-prompt-textarea {
-    min-width: 0;
-  }
-}
-
-/* —— Jobs / processing queue —— */
-.jobs-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
-  gap: 12px;
-}
-
-.jobs-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
-  border: 1px solid #e1e3e5;
-  border-radius: 12px;
-  background: #fafbfb;
-  min-height: 76px;
-  box-sizing: border-box;
-}
-
-.jobs-metric-label {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: 0.02em;
-  color: #6d7175;
-  text-transform: uppercase;
-}
-
-.jobs-metric-value {
-  margin: 0;
-  font-size: 26px;
-  font-weight: 650;
-  line-height: 1.1;
-  color: #202223;
-  font-variant-numeric: tabular-nums;
-}
-
-.jobs-metric--failed .jobs-metric-value {
-  color: #d72c0d;
-}
-
-.jobs-metric--processing .jobs-metric-value {
-  color: #005bd3;
-}
-
-.jobs-metric--completed .jobs-metric-value {
-  color: #008060;
-}
-
-.jobs-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.jobs-search {
-  position: relative;
-  width: 100%;
-  max-width: 640px;
-}
-
-.jobs-search-input {
-  display: block;
-  box-sizing: border-box;
-  width: 100%;
-  height: 40px;
-  padding: 0 14px;
-  border: 1px solid #c9cccf;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #202223;
-  font: inherit;
-  font-size: 14px;
-  line-height: 1.4;
-  outline: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
-}
-
-.jobs-search-input::placeholder {
-  color: #8c9196;
-}
-
-.jobs-search-input:hover {
-  border-color: #8c9196;
-}
-
-.jobs-search-input:focus {
-  border-color: #005bd3;
-  box-shadow: 0 0 0 1px #005bd3;
-}
-
-.jobs-search-hint {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: #6d7175;
-}
-
-.jobs-search-dropdown {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  max-height: 320px;
-  overflow-y: auto;
-  background: #ffffff;
-  border: 1px solid #dfe3e8;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(23, 24, 24, 0.12);
-}
-
-.jobs-search-option {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  color: inherit;
-  font: inherit;
-}
-
-.jobs-search-option:hover,
-.jobs-search-option:focus-visible {
-  background: #f6f6f7;
-  outline: none;
-}
-
-.jobs-search-thumb,
-.jobs-search-thumb-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  object-fit: cover;
-  background: #f1f2f3;
-  border: 1px solid #e3e3e3;
-}
-
-.jobs-search-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.jobs-search-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
-  color: #202223;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.jobs-search-meta {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.3;
-  color: #6d7175;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.jobs-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.jobs-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  padding: 6px 8px 6px 10px;
-  border: 1px solid #dfe3e8;
-  border-radius: 999px;
-  background: #f6f6f7;
-}
-
-.jobs-chip-label {
-  margin: 0;
-  font-size: 13px;
-  color: #202223;
-  max-width: 280px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.jobs-chip-remove {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: #6d7175;
-  cursor: pointer;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0 4px;
-  border-radius: 4px;
-}
-
-.jobs-chip-remove:hover {
-  color: #202223;
-  background: #e4e5e7;
-}
-
-.jobs-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-}
-
-.jobs-stat {
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #f6f6f7;
-  border: 1px solid #eef0f2;
-}
-
-.jobs-stat-label {
-  display: block;
-  font-size: 12px;
-  color: #6d7175;
-  margin-bottom: 2px;
-}
-
-.jobs-stat-value {
-  font-size: 16px;
-  font-weight: 650;
-  color: #202223;
-  font-variant-numeric: tabular-nums;
-}
-
-.jobs-table-wrap {
-  overflow-x: auto;
-  border: 1px solid #e1e3e5;
-  border-radius: 12px;
-  background: #ffffff;
-}
-
-.jobs-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  line-height: 1.4;
-}
-
-.jobs-table th {
-  text-align: left;
-  padding: 12px 14px;
-  font-size: 12px;
-  font-weight: 650;
-  color: #6d7175;
-  background: #fafbfb;
-  border-bottom: 1px solid #e1e3e5;
-  white-space: nowrap;
-}
-
-.jobs-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #eef0f2;
-  vertical-align: middle;
-  color: #202223;
-}
-
-.jobs-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.jobs-table tbody tr:hover td {
-  background: #fafbfb;
-}
-
-.jobs-table-empty {
-  padding: 28px 16px !important;
-  text-align: center;
-  color: #6d7175;
-}
-
-.jobs-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  color: #4a4e52;
-}
-
-.jobs-error-cell {
-  max-width: 200px;
-  color: #8c9196;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.jobs-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-.jobs-detail-card {
-  padding: 14px;
-  border: 1px solid #e1e3e5;
-  border-radius: 12px;
-  background: #ffffff;
-}
-
-.jobs-detail-image {
-  display: block;
-  max-width: 100%;
-  max-height: 280px;
-  margin-top: 10px;
-  object-fit: contain;
-  border-radius: 8px;
-  border: 1px solid #e3e3e3;
-  background: #f6f6f7;
-}
-
 @media (max-width: 720px) {
-  .jobs-metric-value {
+  .aone-metric-value {
     font-size: 22px;
   }
 
-  .jobs-search {
-    max-width: none;
+  .aone-table {
+    min-width: 520px;
   }
 }
