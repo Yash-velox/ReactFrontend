@@ -51,7 +51,6 @@ export default function JobsPage() {
   // Manual batch
   const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
   const [creatingBatch, setCreatingBatch] = useState(false);
-  const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
   const [pickerUnavailable, setPickerUnavailable] = useState(false);
 
   // UI state
@@ -179,7 +178,6 @@ export default function JobsPage() {
           title: p.title,
         })),
       );
-      setCreatedBatchId(null);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resource Picker failed");
@@ -191,14 +189,12 @@ export default function JobsPage() {
     setCreatingBatch(true);
     setError("");
     setMessage("");
-    setCreatedBatchId(null);
     try {
       const response = await authenticatedFetch(endpoints.batchesManual, {
         method: "POST",
         body: JSON.stringify({ productGids: pickedProducts.map((p) => p.id) }),
       });
       const batch = await parseApiResponse<Batch>(response);
-      setCreatedBatchId(batch.id);
       setMessage(`Batch created with ${batch.productCount} product(s) and ${batch.imageCount} image(s).`);
       setPickedProducts([]);
       setBatchPage(1);
@@ -319,327 +315,320 @@ export default function JobsPage() {
               ))}
             </div>
           ) : null}
-
-          {createdBatchId ? (
-            <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-              <s-text>
-                Batch ID: <code className="aone-mono">{createdBatchId}</code>
-              </s-text>
-            </s-box>
-          ) : null}
         </s-stack>
       </s-section>
 
-      <div id="secondary-queue" className="aone-section-anchor">
-      <s-section heading="Secondary Queue">
-        {loading && !secondarySummary ? (
-          <PageSkeleton metricCount={5} tableRows={4} />
-        ) : (
-          <s-stack direction="block" gap="base">
-            <div className="aone-metrics">
-              <MetricCard label="Pending" value={secondarySummary?.pending ?? 0} badgeTone="caution" badgeLabel="Awaiting" />
-              <MetricCard label="Claimed" value={secondarySummary?.claimed ?? 0} badgeTone="info" badgeLabel="In progress" />
-              <MetricCard label="Converted" value={secondarySummary?.converted ?? 0} badgeTone="success" badgeLabel="Done" />
-              <MetricCard label="Skipped" value={secondarySummary?.skipped ?? 0} badgeTone="neutral" badgeLabel="No delta" />
-              <MetricCard label="Failed" value={secondarySummary?.failed ?? 0} badgeTone="critical" badgeLabel="Errors" />
-            </div>
-
-            <div className="aone-toolbar aone-toolbar-spread">
-              <div className="aone-field-group" style={{ maxWidth: 220 }}>
-                <label className="aone-field-label" htmlFor="sq-status">
-                  Status filter
-                </label>
-                <select
-                  id="sq-status"
-                  className="aone-select"
-                  value={secondaryStatusFilter}
-                  onChange={(e) => {
-                    setSecondaryStatusFilter(e.target.value);
-                    setSecondaryPage(1);
-                  }}
-                >
-                  <option value="">All statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="CLAIMED">Claimed</option>
-                  <option value="CONVERTED">Converted</option>
-                  <option value="SKIPPED_NO_ELIGIBLE_IMAGE_DELTA">Skipped</option>
-                  <option value="FAILED_CONVERSION">Failed</option>
-                </select>
+      <div className="aone-jobs-stack">
+        <s-section heading="Secondary Queue">
+          <div id="secondary-queue" className="aone-section-anchor" />
+          {loading && !secondarySummary ? (
+            <PageSkeleton metricCount={5} tableRows={4} />
+          ) : (
+            <s-stack direction="block" gap="base">
+              <div className="aone-metrics">
+                <MetricCard label="Pending" value={secondarySummary?.pending ?? 0} badgeTone="caution" badgeLabel="Awaiting" />
+                <MetricCard label="Claimed" value={secondarySummary?.claimed ?? 0} badgeTone="info" badgeLabel="In progress" />
+                <MetricCard label="Converted" value={secondarySummary?.converted ?? 0} badgeTone="success" badgeLabel="Done" />
+                <MetricCard label="Skipped" value={secondarySummary?.skipped ?? 0} badgeTone="neutral" badgeLabel="No delta" />
+                <MetricCard label="Failed" value={secondarySummary?.failed ?? 0} badgeTone="critical" badgeLabel="Errors" />
               </div>
-              <s-button onClick={() => void refresh()}>Refresh</s-button>
-            </div>
 
-            {secondaryItems.length === 0 ? (
-              <EmptyState
-                title="Secondary Queue is empty"
-                description="Webhook-driven product updates will appear here when eligible changes are received."
-              />
-            ) : (
-              <>
-                <DataTable>
-                  <thead>
-                    <tr>
-                      <th>Product</th>
-                      <th>Revision</th>
-                      <th>Webhooks</th>
-                      <th>First queued</th>
-                      <th>Last queued</th>
-                      <th>Status</th>
-                      <th>Skip / failure</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {secondaryItems.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
-                          <br />
-                          <code className="aone-mono" title={item.shopifyProductGid}>
-                            {truncateGid(item.shopifyProductGid)}
-                          </code>
-                        </td>
-                        <td>{item.queueRevision}</td>
-                        <td>{item.webhookCount}</td>
-                        <td>{formatWhen(item.firstQueuedAt)}</td>
-                        <td>{formatWhen(item.lastQueuedAt)}</td>
-                        <td>
-                          <StatusBadge status={item.status} />
-                        </td>
-                        <td className="aone-table-cell-truncate" title={item.skipReason ?? item.failureReason ?? undefined}>
-                          {item.skipReason ?? item.failureReason ?? "—"}
-                        </td>
+              <div className="aone-toolbar aone-toolbar-spread">
+                <div className="aone-field-group" style={{ maxWidth: 220 }}>
+                  <label className="aone-field-label" htmlFor="sq-status">
+                    Status filter
+                  </label>
+                  <select
+                    id="sq-status"
+                    className="aone-select"
+                    value={secondaryStatusFilter}
+                    onChange={(e) => {
+                      setSecondaryStatusFilter(e.target.value);
+                      setSecondaryPage(1);
+                    }}
+                  >
+                    <option value="">All statuses</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="CLAIMED">Claimed</option>
+                    <option value="CONVERTED">Converted</option>
+                    <option value="SKIPPED_NO_ELIGIBLE_IMAGE_DELTA">Skipped</option>
+                    <option value="FAILED_CONVERSION">Failed</option>
+                  </select>
+                </div>
+                <s-button onClick={() => void refresh()}>Refresh</s-button>
+              </div>
+
+              {secondaryItems.length === 0 ? (
+                <EmptyState
+                  title="Secondary Queue is empty"
+                  description="Webhook-driven product updates will appear here when eligible changes are received."
+                />
+              ) : (
+                <>
+                  <DataTable>
+                    <thead>
+                      <tr>
+                        <th>Product</th>
+                        <th>Revision</th>
+                        <th>Webhooks</th>
+                        <th>First queued</th>
+                        <th>Last queued</th>
+                        <th>Status</th>
+                        <th>Skip / failure</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </DataTable>
+                    </thead>
+                    <tbody>
+                      {secondaryItems.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
+                            <br />
+                            <code className="aone-mono" title={item.shopifyProductGid}>
+                              {truncateGid(item.shopifyProductGid)}
+                            </code>
+                          </td>
+                          <td>{item.queueRevision}</td>
+                          <td>{item.webhookCount}</td>
+                          <td>{formatWhen(item.firstQueuedAt)}</td>
+                          <td>{formatWhen(item.lastQueuedAt)}</td>
+                          <td>
+                            <StatusBadge status={item.status} />
+                          </td>
+                          <td className="aone-table-cell-truncate" title={item.skipReason ?? item.failureReason ?? undefined}>
+                            {item.skipReason ?? item.failureReason ?? "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </DataTable>
 
-                {secondaryPagination ? (
-                  <div className="aone-pagination">
-                    <p className="aone-pagination-meta">
-                      Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
-                      {secondaryPagination.totalItems} items
-                    </p>
-                    <div className="aone-toolbar">
-                      <s-button
-                        disabled={secondaryPage <= 1}
-                        onClick={() => setSecondaryPage((p) => Math.max(1, p - 1))}
-                      >
-                        Previous
-                      </s-button>
-                      <s-button
-                        disabled={secondaryPage >= (secondaryPagination.totalPages || 1)}
-                        onClick={() => setSecondaryPage((p) => p + 1)}
-                      >
-                        Next
-                      </s-button>
+                  {secondaryPagination ? (
+                    <div className="aone-pagination">
+                      <p className="aone-pagination-meta">
+                        Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
+                        {secondaryPagination.totalItems} items
+                      </p>
+                      <div className="aone-toolbar">
+                        <s-button
+                          disabled={secondaryPage <= 1}
+                          onClick={() => setSecondaryPage((p) => Math.max(1, p - 1))}
+                        >
+                          Previous
+                        </s-button>
+                        <s-button
+                          disabled={secondaryPage >= (secondaryPagination.totalPages || 1)}
+                          onClick={() => setSecondaryPage((p) => p + 1)}
+                        >
+                          Next
+                        </s-button>
+                      </div>
                     </div>
-                  </div>
-                ) : null}
-              </>
-            )}
-          </s-stack>
-        )}
-      </s-section>
-      </div>
+                  ) : null}
+                </>
+              )}
+            </s-stack>
+          )}
+        </s-section>
 
-      <s-section heading="Batches">
-        {loading && batches.length === 0 ? (
-          <PageSkeleton metricCount={0} tableRows={4} />
-        ) : batches.length === 0 ? (
-          <EmptyState
-            title="No batches yet"
-            description="Create a manual batch above or enable Auto Sync in Settings to process Secondary Queue items."
-          />
-        ) : (
-          <>
-            <DataTable>
-              <thead>
-                <tr>
-                  <th>Batch</th>
-                  <th>Trigger</th>
-                  <th>Status</th>
-                  <th>Products</th>
-                  <th>Images</th>
-                  <th>Completed</th>
-                  <th>Failed</th>
-                  <th>Retrying</th>
-                  <th>Created</th>
-                  <th>Completed at</th>
-                </tr>
-              </thead>
-              <tbody>
-                {batches.map((batch) => (
-                  <tr
-                    key={batch.id}
-                    className={`aone-table-row-clickable${selectedBatchId === batch.id ? " aone-table-row-selected" : ""}`}
-                    onClick={() => openBatchDetail(batch.id)}
-                  >
-                    <td>
-                      <code className="aone-mono">{batch.id.slice(0, 8)}</code>
-                    </td>
-                    <td>
-                      <StatusBadge status={batch.triggerType} />
-                    </td>
-                    <td>
-                      <StatusBadge status={batch.status} />
-                    </td>
-                    <td>{batch.productCount}</td>
-                    <td>{batch.imageCount}</td>
-                    <td>{batch.completedProductCount}</td>
-                    <td>{batch.failedProductCount}</td>
-                    <td>{batch.retryingProductCount}</td>
-                    <td>{formatWhen(batch.createdAt)}</td>
-                    <td>{formatWhen(batch.completedAt)}</td>
+        <s-section heading="Batches">
+          {loading && batches.length === 0 ? (
+            <PageSkeleton metricCount={0} tableRows={4} />
+          ) : batches.length === 0 ? (
+            <EmptyState
+              title="No batches yet"
+              description="Create a manual batch above or enable Auto Sync in Settings to process Secondary Queue items."
+            />
+          ) : (
+            <>
+              <DataTable>
+                <thead>
+                  <tr>
+                    <th>Batch</th>
+                    <th>Trigger</th>
+                    <th>Status</th>
+                    <th>Products</th>
+                    <th>Images</th>
+                    <th>Completed</th>
+                    <th>Failed</th>
+                    <th>Retrying</th>
+                    <th>Created</th>
+                    <th>Completed at</th>
                   </tr>
-                ))}
-              </tbody>
-            </DataTable>
+                </thead>
+                <tbody>
+                  {batches.map((batch) => (
+                    <tr
+                      key={batch.id}
+                      className={`aone-table-row-clickable${selectedBatchId === batch.id ? " aone-table-row-selected" : ""}`}
+                      onClick={() => openBatchDetail(batch.id)}
+                    >
+                      <td>
+                        <code className="aone-mono">{batch.id.slice(0, 8)}</code>
+                      </td>
+                      <td>
+                        <StatusBadge status={batch.triggerType} />
+                      </td>
+                      <td>
+                        <StatusBadge status={batch.status} />
+                      </td>
+                      <td>{batch.productCount}</td>
+                      <td>{batch.imageCount}</td>
+                      <td>{batch.completedProductCount}</td>
+                      <td>{batch.failedProductCount}</td>
+                      <td>{batch.retryingProductCount}</td>
+                      <td>{formatWhen(batch.createdAt)}</td>
+                      <td>{formatWhen(batch.completedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </DataTable>
 
-            {batchesPagination ? (
-              <div className="aone-pagination">
-                <p className="aone-pagination-meta">
-                  Page {batchesPagination.page} of {batchesPagination.totalPages || 1}
-                </p>
+              {batchesPagination ? (
+                <div className="aone-pagination">
+                  <p className="aone-pagination-meta">
+                    Page {batchesPagination.page} of {batchesPagination.totalPages || 1}
+                  </p>
+                  <div className="aone-toolbar">
+                    <s-button
+                      disabled={batchPage <= 1}
+                      onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </s-button>
+                    <s-button
+                      disabled={batchPage >= (batchesPagination.totalPages || 1)}
+                      onClick={() => setBatchPage((p) => p + 1)}
+                    >
+                      Next
+                    </s-button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+        </s-section>
+
+        {selectedBatchId && selectedBatch ? (
+          <s-section heading="Batch detail">
+            <div className="aone-detail-panel">
+              <div className="aone-detail-header">
+                <s-stack direction="block" gap="small">
+                  <s-text>
+                    Batch <code className="aone-mono">{selectedBatchId}</code>
+                  </s-text>
+                  <s-stack direction="inline" gap="small">
+                    <StatusBadge status={selectedBatch.triggerType} />
+                    <StatusBadge status={selectedBatch.status} />
+                  </s-stack>
+                  {selectedBatch.errorSummary ? (
+                    <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
+                  ) : null}
+                </s-stack>
                 <div className="aone-toolbar">
-                  <s-button
-                    disabled={batchPage <= 1}
-                    onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
-                  >
-                    Previous
-                  </s-button>
-                  <s-button
-                    disabled={batchPage >= (batchesPagination.totalPages || 1)}
-                    onClick={() => setBatchPage((p) => p + 1)}
-                  >
-                    Next
-                  </s-button>
+                  {selectedBatch.failedProductCount > 0 ? (
+                    <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
+                      Retry failed
+                    </s-button>
+                  ) : null}
+                  <s-button onClick={() => setSelectedBatchId(null)}>Close</s-button>
                 </div>
               </div>
-            ) : null}
-          </>
-        )}
-      </s-section>
 
-      {selectedBatchId && selectedBatch ? (
-        <s-section heading="Batch detail">
-          <div className="aone-detail-panel">
-            <div className="aone-detail-header">
-              <s-stack direction="block" gap="small">
-                <s-text>
-                  Batch <code className="aone-mono">{selectedBatchId}</code>
-                </s-text>
-                <s-stack direction="inline" gap="small">
-                  <StatusBadge status={selectedBatch.triggerType} />
-                  <StatusBadge status={selectedBatch.status} />
+              {detailLoading ? (
+                <PageSkeleton metricCount={0} tableRows={3} />
+              ) : (
+                <s-stack direction="block" gap="base">
+                  <s-heading>Products</s-heading>
+                  {batchProducts.length === 0 ? (
+                    <EmptyState title="No products" description="This batch has no product records." />
+                  ) : (
+                    <DataTable>
+                      <thead>
+                        <tr>
+                          <th>Product GID</th>
+                          <th>Status</th>
+                          <th>Images</th>
+                          <th>Retries</th>
+                          <th>Error</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batchProducts.map((product) => (
+                          <tr key={product.id}>
+                            <td>
+                              <code className="aone-mono" title={product.shopifyProductGid}>
+                                {truncateGid(product.shopifyProductGid)}
+                              </code>
+                            </td>
+                            <td>
+                              <StatusBadge status={product.status} />
+                            </td>
+                            <td>{product.imageCount}</td>
+                            <td>{product.retryCount}</td>
+                            <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
+                              {product.errorMessage ?? "—"}
+                            </td>
+                            <td>
+                              {product.status === "FAILED" ? (
+                                <s-button onClick={() => void retryProduct(product.id)}>Retry</s-button>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </DataTable>
+                  )}
+
+                  <s-heading>Images</s-heading>
+                  {batchImages.length === 0 ? (
+                    <EmptyState title="No images" description="This batch has no image work items." />
+                  ) : (
+                    <DataTable>
+                      <thead>
+                        <tr>
+                          <th>Media GID</th>
+                          <th>Delta</th>
+                          <th>Status</th>
+                          <th>Attempts</th>
+                          <th>Error</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batchImages.map((image) => (
+                          <tr key={image.id}>
+                            <td>
+                              <code className="aone-mono" title={image.shopifyMediaGid}>
+                                {truncateGid(image.shopifyMediaGid)}
+                              </code>
+                            </td>
+                            <td>
+                              <StatusBadge status={image.deltaType} />
+                            </td>
+                            <td>
+                              <StatusBadge status={image.status} />
+                            </td>
+                            <td>{image.attemptCount}</td>
+                            <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
+                              {image.errorMessage ?? "—"}
+                            </td>
+                            <td>
+                              <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </DataTable>
+                  )}
                 </s-stack>
-                {selectedBatch.errorSummary ? (
-                  <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
-                ) : null}
-              </s-stack>
-              <div className="aone-toolbar">
-                {selectedBatch.failedProductCount > 0 ? (
-                  <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
-                    Retry failed
-                  </s-button>
-                ) : null}
-                <s-button onClick={() => setSelectedBatchId(null)}>Close</s-button>
-              </div>
+              )}
             </div>
-
-            {detailLoading ? (
-              <PageSkeleton metricCount={0} tableRows={3} />
-            ) : (
-              <s-stack direction="block" gap="base">
-                <s-heading>Products</s-heading>
-                {batchProducts.length === 0 ? (
-                  <EmptyState title="No products" description="This batch has no product records." />
-                ) : (
-                  <DataTable>
-                    <thead>
-                      <tr>
-                        <th>Product GID</th>
-                        <th>Status</th>
-                        <th>Images</th>
-                        <th>Retries</th>
-                        <th>Error</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {batchProducts.map((product) => (
-                        <tr key={product.id}>
-                          <td>
-                            <code className="aone-mono" title={product.shopifyProductGid}>
-                              {truncateGid(product.shopifyProductGid)}
-                            </code>
-                          </td>
-                          <td>
-                            <StatusBadge status={product.status} />
-                          </td>
-                          <td>{product.imageCount}</td>
-                          <td>{product.retryCount}</td>
-                          <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
-                            {product.errorMessage ?? "—"}
-                          </td>
-                          <td>
-                            {product.status === "FAILED" ? (
-                              <s-button onClick={() => void retryProduct(product.id)}>Retry</s-button>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </DataTable>
-                )}
-
-                <s-heading>Images</s-heading>
-                {batchImages.length === 0 ? (
-                  <EmptyState title="No images" description="This batch has no image work items." />
-                ) : (
-                  <DataTable>
-                    <thead>
-                      <tr>
-                        <th>Media GID</th>
-                        <th>Delta</th>
-                        <th>Status</th>
-                        <th>Attempts</th>
-                        <th>Error</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {batchImages.map((image) => (
-                        <tr key={image.id}>
-                          <td>
-                            <code className="aone-mono" title={image.shopifyMediaGid}>
-                              {truncateGid(image.shopifyMediaGid)}
-                            </code>
-                          </td>
-                          <td>
-                            <StatusBadge status={image.deltaType} />
-                          </td>
-                          <td>
-                            <StatusBadge status={image.status} />
-                          </td>
-                          <td>{image.attemptCount}</td>
-                          <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
-                            {image.errorMessage ?? "—"}
-                          </td>
-                          <td>
-                            <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </DataTable>
-                )}
-              </s-stack>
-            )}
-          </div>
-        </s-section>
-      ) : null}
+          </s-section>
+        ) : null}
+      </div>
 
       <ConfirmDialog
         open={retryConfirmOpen}
