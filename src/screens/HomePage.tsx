@@ -6,7 +6,6 @@ import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, SecondaryQueueSummary, SyncStatus } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
-import { appPath } from "../utils/routes";
 
 type HealthState = "checking" | "ok" | "down";
 
@@ -143,18 +142,6 @@ export default function HomePage() {
             />
           </div>
         )}
-      </s-section>
-
-      <s-section heading="Quick actions">
-        <s-paragraph>Jump to common workflows without leaving the admin.</s-paragraph>
-        <div className="aone-toolbar">
-          <s-button variant="primary" href={appPath("/products")}>
-            Sync products
-          </s-button>
-          <s-button href={appPath("/jobs")}>Create batch</s-button>
-          <s-button href={appPath("/settings")}>Settings</s-button>
-          <s-button href={`${appPath("/jobs")}#secondary-queue`}>View secondary queue</s-button>
-        </div>
       </s-section>
     </s-page>
   );

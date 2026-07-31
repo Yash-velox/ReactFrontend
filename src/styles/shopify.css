@@ -409,6 +409,21 @@ textarea:focus-visible {
   scroll-margin-top: var(--aone-space-6);
 }
 
+/* Keep Secondary Queue + Batches stacked full-width with clear vertical gap
+   (Polaris s-page grid otherwise packs adjacent section cards flush). */
+.aone-jobs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-6);
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+.aone-jobs-stack > s-section {
+  width: 100%;
+  min-width: 0;
+}
+
 .aone-chip-list {
   display: flex;
   flex-wrap: wrap;

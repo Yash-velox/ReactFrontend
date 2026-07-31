@@ -62,7 +62,6 @@ export default function JobsPage() {
   // Manual batch
   const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
   const [creatingBatch, setCreatingBatch] = useState(false);
-  const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [manualBatchLimit, setManualBatchLimit] = useState(DEFAULT_MANUAL_BATCH_LIMIT);
 
@@ -181,7 +180,6 @@ export default function JobsPage() {
     setCreatingBatch(true);
     setError("");
     setMessage("");
-    setCreatedBatchId(null);
     try {
       const chunks = chunkArray(pickedProducts, manualBatchLimit);
       const created: Batch[] = [];
@@ -196,7 +194,6 @@ export default function JobsPage() {
       const totalProducts = created.reduce((sum, b) => sum + b.productCount, 0);
       const totalImages = created.reduce((sum, b) => sum + b.imageCount, 0);
       const last = created[created.length - 1];
-      setCreatedBatchId(last?.id ?? null);
       if (created.length === 1) {
         setMessage(
           `Batch created with ${totalProducts} product(s) and ${totalImages} image(s).`,
@@ -330,13 +327,6 @@ export default function JobsPage() {
             </div>
           ) : null}
 
-          {createdBatchId ? (
-            <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
-              <s-text>
-                Last batch ID: <code className="aone-mono">{createdBatchId}</code>
-              </s-text>
-            </s-box>
-          ) : null}
         </s-stack>
       </s-section>
 
@@ -347,15 +337,15 @@ export default function JobsPage() {
         onConfirm={(products, limit) => {
           setManualBatchLimit(limit || DEFAULT_MANUAL_BATCH_LIMIT);
           setPickedProducts(products);
-          setCreatedBatchId(null);
           setPickerOpen(false);
           setError("");
         }}
       />
 
-      <div id="secondary-queue" className="aone-section-anchor">
-      <s-section heading="Secondary Queue">
-        {loading && !secondarySummary ? (
+      <div className="aone-jobs-stack">
+        <s-section heading="Secondary Queue">
+          <div id="secondary-queue" className="aone-section-anchor" />
+          {loading && !secondarySummary ? (
           <PageSkeleton metricCount={5} tableRows={4} />
         ) : (
           <s-stack direction="block" gap="base">
@@ -462,10 +452,9 @@ export default function JobsPage() {
             )}
           </s-stack>
         )}
-      </s-section>
-      </div>
+        </s-section>
 
-      <s-section heading="Batches">
+        <s-section heading="Batches">
         {loading && batches.length === 0 ? (
           <PageSkeleton metricCount={0} tableRows={4} />
         ) : batches.length === 0 ? (
@@ -663,6 +652,8 @@ export default function JobsPage() {
           </div>
         </s-section>
       ) : null}
+
+      </div>
 
       <ConfirmDialog
         open={retryConfirmOpen}
