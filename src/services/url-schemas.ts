@@ -57,6 +57,21 @@ export const endpoints = {
   catalogProductMatchingGids: `${API_BASE_URL}/api/products/matching-gids`,
   catalogProductTypes: `${API_BASE_URL}/api/products/product-types`,
 
+  // Media versions + rollback
+  productsWithMediaVersions: `${API_BASE_URL}/api/products/media-versions`,
+  productMediaVersions: (productId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/media-versions`,
+  productMediaVersion: (productId: string, versionId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/media-versions/${versionId}`,
+  productRollbackPreview: (productId: string, versionId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/media-versions/${versionId}/rollback-preview`,
+  productRollback: (productId: string, versionId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/media-versions/${versionId}/rollback`,
+  rollbackOperation: (operationId: string) =>
+    `${API_BASE_URL}/api/rollback-operations/${operationId}`,
+  rollbackOperationRetry: (operationId: string) =>
+    `${API_BASE_URL}/api/rollback-operations/${operationId}/retry`,
+
   // Prompt Management
   promptVariables: `${API_BASE_URL}/api/prompts/variables`,
   promptProductTypes: `${API_BASE_URL}/api/prompts/product-types`,

@@ -20,6 +20,7 @@ import type {
 } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
 import { formatGid, formatWhen, truncateGid } from "../utils/format";
+import { navigateApp } from "../utils/routes";
 
 type PickerProduct = {
   id: string;
@@ -168,6 +169,58 @@ export default function JobsPage() {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await authenticatedFetch(endpoints.settings);
+        const data = await parseApiResponse<{ autoPublishProcessedImages?: boolean }>(response);
+        setAutoPublishEnabled(Boolean(data.autoPublishProcessedImages));
+      } catch {
+        // Non-blocking: publish buttons still work; Publish All assumes manual mode.
+      }
+    })();
+  }, [authenticatedFetch]);
+
+  const publishSummary = useMemo(() => {
+    const counts = {
+      ready: 0,
+      queued: 0,
+      publishing: 0,
+      published: 0,
+      failed: 0,
+      conflict: 0,
+      restoreFailed: 0,
+    };
+    for (const p of batchProducts) {
+      switch (p.publishStatus) {
+        case "READY_TO_PUBLISH":
+          counts.ready += 1;
+          break;
+        case "QUEUED":
+          counts.queued += 1;
+          break;
+        case "PUBLISHING":
+          counts.publishing += 1;
+          break;
+        case "PUBLISHED":
+          counts.published += 1;
+          break;
+        case "PUBLISH_FAILED":
+          counts.failed += 1;
+          break;
+        case "PUBLISH_CONFLICT":
+          counts.conflict += 1;
+          break;
+        case "RESTORE_FAILED":
+          counts.restoreFailed += 1;
+          break;
+        default:
+          break;
+      }
+    }
+    return counts;
+  }, [batchProducts]);
+
   const loadBatchDetail = useCallback(
     async (batchId: string) => {
       setDetailLoading(true);
@@ -281,7 +334,87 @@ export default function JobsPage() {
     }
   };
 
+  const publishProduct = async (productId: string) => {
+    setPublishBusyId(productId);
+    setError("");
+    setConflictText("");
+    try {
+      const payload = await parseApiResponse<{ status?: string; message?: string }>(
+        await authenticatedFetch(endpoints.batchProductPublish(productId), { method: "POST" }),
+      );
+      setMessage(payload.message || "Product publishing has been queued.");
+      if (selectedBatchId) await loadBatchDetail(selectedBatchId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Publish failed");
+    } finally {
+      setPublishBusyId(null);
+    }
+  };
+
+  const retryPublish = async (productId: string) => {
+    setPublishBusyId(productId);
+    setError("");
+    setConflictText("");
+    try {
+      const payload = await parseApiResponse<{ message?: string }>(
+        await authenticatedFetch(endpoints.batchProductRetryPublish(productId), { method: "POST" }),
+      );
+      setMessage(payload.message || "Publish retry queued.");
+      if (selectedBatchId) await loadBatchDetail(selectedBatchId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Retry publish failed");
+    } finally {
+      setPublishBusyId(null);
+    }
+  };
+
+  const publishAllReady = async () => {
+    if (!selectedBatchId || publishAllBusy) return;
+    setPublishAllBusy(true);
+    setError("");
+    setConflictText("");
+    try {
+      const payload = await parseApiResponse<{
+        queued?: number;
+        alreadyQueued?: number;
+        alreadyPublished?: number;
+        failedValidation?: number;
+      }>(await authenticatedFetch(endpoints.batchPublishReady(selectedBatchId), { method: "POST" }));
+      setMessage(
+        `Publish All: queued ${payload.queued ?? 0}, already queued ${payload.alreadyQueued ?? 0}, already published ${payload.alreadyPublished ?? 0}, failed validation ${payload.failedValidation ?? 0}.`,
+      );
+      await loadBatchDetail(selectedBatchId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Publish all failed");
+    } finally {
+      setPublishAllBusy(false);
+    }
+  };
+
+  const reviewConflict = async (productId: string) => {
+    setError("");
+    try {
+      const payload = await parseApiResponse<{
+        message?: string;
+        conflictDetails?: Record<string, unknown>;
+      }>(await authenticatedFetch(endpoints.batchProductPublishConflict(productId)));
+      const details = payload.conflictDetails
+        ? JSON.stringify(payload.conflictDetails, null, 2)
+        : "";
+      setConflictText(
+        `${payload.message || "Shopify product media changed during processing."}${details ? `\n\n${details}` : ""}`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load conflict details");
+    }
+  };
+
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
+  const canPublishAll =
+    Boolean(selectedBatch) &&
+    !autoPublishEnabled &&
+    TERMINAL_BATCH_STATUSES.has(selectedBatch?.status ?? "") &&
+    publishSummary.ready > 0;
 
   return (
     <s-page heading="Jobs">
@@ -302,6 +435,20 @@ export default function JobsPage() {
         <s-section>
           <s-banner tone="success" heading="Update">
             <s-paragraph>{message}</s-paragraph>
+          </s-banner>
+        </s-section>
+      ) : null}
+
+      {conflictText ? (
+        <s-section>
+          <s-banner tone="warning" heading="Publish conflict">
+            <s-paragraph>
+              <pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: "0.85em" }}>{conflictText}</pre>
+            </s-paragraph>
+            <s-paragraph>
+              Sync the catalog and process this product again. Do not force-overwrite merchant changes.
+            </s-paragraph>
+            <s-button onClick={() => setConflictText("")}>Dismiss</s-button>
           </s-banner>
         </s-section>
       ) : null}
@@ -583,6 +730,15 @@ export default function JobsPage() {
                 ) : null}
               </s-stack>
               <div className="aone-toolbar">
+                {canPublishAll ? (
+                  <s-button
+                    variant="primary"
+                    disabled={publishAllBusy}
+                    onClick={() => void publishAllReady()}
+                  >
+                    {publishAllBusy ? "Queuing…" : "Publish All Ready Products"}
+                  </s-button>
+                ) : null}
                 {selectedBatch.failedProductCount > 0 ? (
                   <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
                     Retry failed
@@ -596,6 +752,26 @@ export default function JobsPage() {
               <PageSkeleton metricCount={0} tableRows={3} />
             ) : (
               <s-stack direction="block" gap="base">
+                {TERMINAL_BATCH_STATUSES.has(selectedBatch.status) ? (
+                  <div className="aone-metrics">
+                    <MetricCard label="Ready to Publish" value={publishSummary.ready} />
+                    <MetricCard label="Queued" value={publishSummary.queued} />
+                    <MetricCard label="Publishing" value={publishSummary.publishing} />
+                    <MetricCard label="Published" value={publishSummary.published} badgeTone="success" />
+                    <MetricCard label="Publish Failed" value={publishSummary.failed} badgeTone="critical" />
+                    <MetricCard label="Conflict" value={publishSummary.conflict} badgeTone="caution" />
+                  </div>
+                ) : null}
+
+                {publishSummary.restoreFailed > 0 ? (
+                  <s-banner tone="critical" heading="Restore failed">
+                    <s-paragraph>
+                      Automatic restoration could not be verified for {publishSummary.restoreFailed}{" "}
+                      product(s). Manual Shopify review is required.
+                    </s-paragraph>
+                  </s-banner>
+                ) : null}
+
                 <s-heading>Products</s-heading>
                 {batchProducts.length === 0 ? (
                   <EmptyState title="No products" description="This batch has no product records." />
@@ -605,6 +781,7 @@ export default function JobsPage() {
                       <tr>
                         <th>Product GID</th>
                         <th>Status</th>
+                        <th>Publish</th>
                         <th>Images</th>
                         <th>Retries</th>
                         <th>Error</th>
@@ -612,30 +789,85 @@ export default function JobsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {batchProducts.map((product) => (
-                        <tr key={product.id}>
-                          <td>
-                            <code className="aone-mono" title={product.shopifyProductGid}>
-                              {truncateGid(product.shopifyProductGid)}
-                            </code>
-                          </td>
-                          <td>
-                            <StatusBadge status={product.status} />
-                          </td>
-                          <td>{product.imageCount}</td>
-                          <td>{product.retryCount}</td>
-                          <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
-                            {product.errorMessage ?? "—"}
-                          </td>
-                          <td>
-                            {product.status === "FAILED" ? (
-                              <s-button onClick={() => void retryProduct(product.id)}>Retry</s-button>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                      {batchProducts.map((product) => {
+                        const adminUrl = shopifyAdminProductUrl(product.shopifyProductGid);
+                        const pub = product.publishStatus;
+                        const busy = publishBusyId === product.id;
+                        return (
+                          <tr key={product.id}>
+                            <td>
+                              <code className="aone-mono" title={product.shopifyProductGid}>
+                                {truncateGid(product.shopifyProductGid)}
+                              </code>
+                            </td>
+                            <td>
+                              <StatusBadge status={product.status} />
+                            </td>
+                            <td>
+                              {pub ? (
+                                <StatusBadge status={pub} />
+                              ) : (
+                                "—"
+                              )}
+                              {pub && ACTIVE_PUBLISH_STATUSES.has(pub) ? (
+                                <>
+                                  <br />
+                                  <s-text tone="neutral">{publishStageLabel(pub)}</s-text>
+                                </>
+                              ) : null}
+                            </td>
+                            <td>{product.imageCount}</td>
+                            <td>{product.retryCount}</td>
+                            <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
+                              {product.errorMessage ?? "—"}
+                            </td>
+                            <td>
+                              <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+                                {product.status === "FAILED" ? (
+                                  <s-button onClick={() => void retryProduct(product.id)}>
+                                    Retry Processing
+                                  </s-button>
+                                ) : null}
+                                {pub === "READY_TO_PUBLISH" && !autoPublishEnabled ? (
+                                  <s-button
+                                    variant="primary"
+                                    disabled={busy || Boolean(publishBusyId)}
+                                    onClick={() => void publishProduct(product.id)}
+                                  >
+                                    {busy ? "Queuing…" : "Publish to Shopify"}
+                                  </s-button>
+                                ) : null}
+                                {pub === "PUBLISH_FAILED" || pub === "RESTORE_FAILED" ? (
+                                  <s-button
+                                    disabled={busy}
+                                    onClick={() => void retryPublish(product.id)}
+                                  >
+                                    {busy ? "Queuing…" : "Retry Publish"}
+                                  </s-button>
+                                ) : null}
+                                {pub === "PUBLISH_CONFLICT" ? (
+                                  <s-button onClick={() => void reviewConflict(product.id)}>
+                                    Review Conflict
+                                  </s-button>
+                                ) : null}
+                                {pub === "PUBLISHED" && adminUrl ? (
+                                  <s-link href={adminUrl} target="_blank">
+                                    View Shopify Product
+                                  </s-link>
+                                ) : null}
+                                {pub === "PUBLISHED" && product.productId ? (
+                                  <s-button
+                                    onClick={() => navigateApp(`/products/${product.productId}/versions`)}
+                                  >
+                                    View Versions
+                                  </s-button>
+                                ) : null}
+                                {!pub && product.status !== "FAILED" ? "—" : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </DataTable>
                 )}

@@ -5,6 +5,8 @@ import HomePage from "./screens/HomePage";
 import JobsPage from "./screens/JobsPage";
 import PocPage from "./screens/PocPage";
 import ProductsPage from "./screens/ProductsPage";
+import ProductVersionsHubPage from "./screens/ProductVersionsHubPage";
+import ProductVersionsPage from "./screens/ProductVersionsPage";
 import PromptConfigurationPage from "./screens/PromptConfigurationPage";
 import PromptsPage from "./screens/PromptsPage";
 import SettingsPage from "./screens/SettingsPage";
@@ -21,6 +23,7 @@ function AppNav() {
         Home
       </a>
       <a href="/products">Products</a>
+      <a href="/products/versions">Versions</a>
       <a href="/jobs">Jobs</a>
       <a href="/prompts">Prompts</a>
       <a href="/settings">Settings</a>
@@ -34,6 +37,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/products" element={<ProductsPage />} />
+      <Route path="/products/versions" element={<ProductVersionsHubPage />} />
+      <Route path="/products/:productId/versions" element={<ProductVersionsPage />} />
       <Route path="/jobs" element={<JobsPage />} />
       <Route path="/prompts" element={<PromptsPage />} />
       <Route path="/prompts/:productTypeId" element={<PromptConfigurationPage />} />
@@ -42,6 +47,8 @@ function AppRoutes() {
       {/* Safety aliases if a link still carries the Remix /app prefix */}
       <Route path="/app" element={<HomePage />} />
       <Route path="/app/products" element={<ProductsPage />} />
+      <Route path="/app/products/versions" element={<ProductVersionsHubPage />} />
+      <Route path="/app/products/:productId/versions" element={<ProductVersionsPage />} />
       <Route path="/app/jobs" element={<JobsPage />} />
       <Route path="/app/prompts" element={<PromptsPage />} />
       <Route path="/app/prompts/:productTypeId" element={<PromptConfigurationPage />} />
