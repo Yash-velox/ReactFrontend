@@ -264,12 +264,35 @@ textarea:focus-visible {
   border-radius: var(--aone-radius-sm);
 }
 
+/* Before / after image comparison */
+.aone-compare-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  max-height: 48vh;
+  padding: var(--aone-space-2);
+  border: 1px solid var(--aone-border);
+  overflow: hidden;
+}
+
+.aone-compare-image {
+  max-width: 100%;
+  max-height: 44vh;
+  object-fit: contain;
+  border-radius: var(--aone-radius-sm);
+}
+
 /* Form fields */
 .aone-field-group {
   display: flex;
   flex-direction: column;
   gap: var(--aone-space-1);
   max-width: 320px;
+}
+
+.aone-field-group-wide {
+  max-width: none;
 }
 
 .aone-field-label {

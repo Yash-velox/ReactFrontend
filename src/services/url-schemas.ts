@@ -42,6 +42,7 @@ export const endpoints = {
   batchDetail: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}`,
   batchProducts: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/products`,
   batchImages: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/images`,
+  batchImageOutput: (imageId: string) => `${API_BASE_URL}/api/batches/images/${imageId}/output`,
   batchRetryFailed: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/retry-failed`,
   batchProductRetry: (productId: string) => `${API_BASE_URL}/api/batches/products/${productId}/retry`,
 

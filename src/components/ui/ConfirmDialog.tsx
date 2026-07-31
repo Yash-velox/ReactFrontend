@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useModalOverlay } from "./useModalOverlay";
 
 type Props = {
   open: boolean;
@@ -25,15 +26,17 @@ export default function ConfirmDialog({
   onCancel,
   children,
 }: Props) {
+  const { id: modalId, ref: modalRef, dismiss } = useModalOverlay(open, onCancel);
+
   if (!open) return null;
 
   return (
-    <s-modal heading={title}>
+    <s-modal id={modalId} ref={modalRef} heading={title}>
       <s-stack direction="block" gap="base">
         <s-paragraph>{message}</s-paragraph>
         {children ? <div>{children}</div> : null}
         <div className="aone-toolbar">
-          <s-button onClick={onCancel} disabled={busy}>
+          <s-button onClick={dismiss} disabled={busy}>
             {cancelLabel}
           </s-button>
           <s-button

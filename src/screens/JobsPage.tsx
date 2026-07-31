@@ -3,6 +3,7 @@ import ConfirmDialog from "../components/ui/ConfirmDialog";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
+import ImageCompareDialog from "../components/ui/ImageCompareDialog";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import StatusBadge from "../components/ui/StatusBadge";
@@ -45,6 +46,7 @@ export default function JobsPage() {
   const [batchProducts, setBatchProducts] = useState<BatchProduct[]>([]);
   const [batchImages, setBatchImages] = useState<BatchImage[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<BatchImage | null>(null);
 
   // Manual batch
   const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
@@ -604,6 +606,7 @@ export default function JobsPage() {
                         <th>Status</th>
                         <th>Attempts</th>
                         <th>Error</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -623,6 +626,9 @@ export default function JobsPage() {
                           <td>{image.attemptCount}</td>
                           <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
                             {image.errorMessage ?? "—"}
+                          </td>
+                          <td>
+                            <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
                           </td>
                         </tr>
                       ))}
@@ -645,6 +651,8 @@ export default function JobsPage() {
         onConfirm={() => void retryFailedInBatch()}
         onCancel={() => setRetryConfirmOpen(false)}
       />
+
+      <ImageCompareDialog image={previewImage} onClose={() => setPreviewImage(null)} />
     </s-page>
   );
 }
