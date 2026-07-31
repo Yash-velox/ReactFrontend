@@ -6,6 +6,7 @@ import ErrorBanner from "../components/ui/ErrorBanner";
 import ImageCompareDialog from "../components/ui/ImageCompareDialog";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
+import ProductPickerDialog from "../components/ui/ProductPickerDialog";
 import StatusBadge from "../components/ui/StatusBadge";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
@@ -27,6 +28,16 @@ type PickerProduct = {
 
 const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
 const PAGE_SIZE = 20;
+const DEFAULT_MANUAL_BATCH_LIMIT = 50;
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  const n = Math.max(1, size);
+  for (let i = 0; i < items.length; i += n) {
+    chunks.push(items.slice(i, i + n));
+  }
+  return chunks;
+}
 
 export default function JobsPage() {
   const authenticatedFetch = useAuthenticatedFetch();
@@ -52,7 +63,8 @@ export default function JobsPage() {
   const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
   const [creatingBatch, setCreatingBatch] = useState(false);
   const [createdBatchId, setCreatedBatchId] = useState<string | null>(null);
-  const [pickerUnavailable, setPickerUnavailable] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [manualBatchLimit, setManualBatchLimit] = useState(DEFAULT_MANUAL_BATCH_LIMIT);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -158,32 +170,10 @@ export default function JobsPage() {
     void loadBatchDetail(batchId);
   };
 
-  const openResourcePicker = async () => {
-    setPickerUnavailable(false);
+  const openProductPicker = () => {
     setMessage("");
-    const picker = window.shopify?.resourcePicker;
-    if (!picker) {
-      setPickerUnavailable(true);
-      setError(
-        "Resource Picker is unavailable outside Shopify Admin. Open this app embedded in Admin to select products.",
-      );
-      return;
-    }
-
-    try {
-      const selected = await picker({ type: "product", multiple: true });
-      if (!selected?.length) return;
-      setPickedProducts(
-        selected.map((p) => ({
-          id: p.id,
-          title: p.title,
-        })),
-      );
-      setCreatedBatchId(null);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Resource Picker failed");
-    }
+    setError("");
+    setPickerOpen(true);
   };
 
   const createManualBatch = async () => {
@@ -193,17 +183,33 @@ export default function JobsPage() {
     setMessage("");
     setCreatedBatchId(null);
     try {
-      const response = await authenticatedFetch(endpoints.batchesManual, {
-        method: "POST",
-        body: JSON.stringify({ productGids: pickedProducts.map((p) => p.id) }),
-      });
-      const batch = await parseApiResponse<Batch>(response);
-      setCreatedBatchId(batch.id);
-      setMessage(`Batch created with ${batch.productCount} product(s) and ${batch.imageCount} image(s).`);
+      const chunks = chunkArray(pickedProducts, manualBatchLimit);
+      const created: Batch[] = [];
+      for (const chunk of chunks) {
+        const response = await authenticatedFetch(endpoints.batchesManual, {
+          method: "POST",
+          body: JSON.stringify({ productGids: chunk.map((p) => p.id) }),
+        });
+        const batch = await parseApiResponse<Batch>(response);
+        created.push(batch);
+      }
+      const totalProducts = created.reduce((sum, b) => sum + b.productCount, 0);
+      const totalImages = created.reduce((sum, b) => sum + b.imageCount, 0);
+      const last = created[created.length - 1];
+      setCreatedBatchId(last?.id ?? null);
+      if (created.length === 1) {
+        setMessage(
+          `Batch created with ${totalProducts} product(s) and ${totalImages} image(s).`,
+        );
+      } else {
+        setMessage(
+          `Created ${created.length} batches from ${totalProducts} product(s) (${totalImages} image(s)), split at ${manualBatchLimit} products per batch.`,
+        );
+      }
       setPickedProducts([]);
       setBatchPage(1);
       await loadBatches(1);
-      openBatchDetail(batch.id);
+      if (last) openBatchDetail(last.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create batch");
     } finally {
@@ -272,20 +278,12 @@ export default function JobsPage() {
       <s-section heading="Manual batch creation">
         <s-stack direction="block" gap="base">
           <s-paragraph>
-            Select products with the Shopify Resource Picker, then create a product-based processing batch.
+            Select synced catalog products (search, filter, select all matches), then create one or
+            more product-based processing batches. Large selections are split automatically.
           </s-paragraph>
 
-          {pickerUnavailable ? (
-            <s-banner tone="warning" heading="Resource Picker unavailable">
-              <s-paragraph>
-                Open this app inside Shopify Admin to use the native product picker. Product GIDs are
-                required for manual batches.
-              </s-paragraph>
-            </s-banner>
-          ) : null}
-
-          <div className="aone-toolbar">
-            <s-button variant="primary" onClick={() => void openResourcePicker()} disabled={creatingBatch}>
+          <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+            <s-button variant="primary" onClick={openProductPicker} disabled={creatingBatch}>
               Select products
             </s-button>
             <s-button
@@ -293,16 +291,25 @@ export default function JobsPage() {
               onClick={() => void createManualBatch()}
               disabled={creatingBatch || pickedProducts.length === 0}
             >
-              {creatingBatch ? "Creating…" : "Create batch"}
+              {creatingBatch
+                ? "Creating…"
+                : pickedProducts.length > manualBatchLimit
+                  ? `Create ${Math.ceil(pickedProducts.length / manualBatchLimit)} batches`
+                  : "Create batch"}
             </s-button>
             {pickedProducts.length > 0 ? (
-              <s-badge tone="info">{pickedProducts.length} selected</s-badge>
+              <s-badge tone="info">
+                {pickedProducts.length} selected
+                {pickedProducts.length > manualBatchLimit
+                  ? ` · ${Math.ceil(pickedProducts.length / manualBatchLimit)} batches`
+                  : ""}
+              </s-badge>
             ) : null}
           </div>
 
           {pickedProducts.length > 0 ? (
             <div className="aone-chip-list">
-              {pickedProducts.map((product) => (
+              {pickedProducts.slice(0, 40).map((product) => (
                 <span key={product.id} className="aone-chip">
                   {product.title ?? formatGid(product.id)}
                   <button
@@ -317,18 +324,34 @@ export default function JobsPage() {
                   </button>
                 </span>
               ))}
+              {pickedProducts.length > 40 ? (
+                <span className="aone-chip">+{pickedProducts.length - 40} more</span>
+              ) : null}
             </div>
           ) : null}
 
           {createdBatchId ? (
             <s-box padding="base" borderWidth="base" borderRadius="base" background="subdued">
               <s-text>
-                Batch ID: <code className="aone-mono">{createdBatchId}</code>
+                Last batch ID: <code className="aone-mono">{createdBatchId}</code>
               </s-text>
             </s-box>
           ) : null}
         </s-stack>
       </s-section>
+
+      <ProductPickerDialog
+        open={pickerOpen}
+        initialSelected={pickedProducts}
+        onCancel={() => setPickerOpen(false)}
+        onConfirm={(products, limit) => {
+          setManualBatchLimit(limit || DEFAULT_MANUAL_BATCH_LIMIT);
+          setPickedProducts(products);
+          setCreatedBatchId(null);
+          setPickerOpen(false);
+          setError("");
+        }}
+      />
 
       <div id="secondary-queue" className="aone-section-anchor">
       <s-section heading="Secondary Queue">

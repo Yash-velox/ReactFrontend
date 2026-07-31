@@ -13,6 +13,13 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   PENDING: { tone: "caution", label: "Pending" },
   CANCELLED: { tone: "neutral", label: "Cancelled" },
 
+  // Prompt management
+  ENABLED: { tone: "success", label: "Enabled" },
+  DISABLED: { tone: "neutral", label: "Disabled" },
+  NOT_CONFIGURED: { tone: "caution", label: "Not Configured" },
+  NOT_READY: { tone: "caution", label: "Not Ready" },
+  SHOPIFY: { tone: "info", label: "Shopify" },
+
   // Secondary queue
   CLAIMED: { tone: "info", label: "Claimed" },
   CONVERTED: { tone: "success", label: "Converted" },
