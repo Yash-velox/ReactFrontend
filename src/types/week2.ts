@@ -7,6 +7,7 @@ export type PaginationMeta = {
 
 export type Settings = {
   autoSyncEnabled: boolean;
+  autoPublishProcessedImages: boolean;
   maxProductsPerBatch: number;
   batchIntervalMinutes: number;
   createdAt: string;
@@ -86,6 +87,7 @@ export type BatchProduct = {
   shopifyProductGid: string;
   productId?: string | null;
   status: string;
+  publishStatus?: string | null;
   imageCount: number;
   retryCount: number;
   errorCode?: string | null;

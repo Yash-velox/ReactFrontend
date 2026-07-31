@@ -45,6 +45,12 @@ export const endpoints = {
   batchImageOutput: (imageId: string) => `${API_BASE_URL}/api/batches/images/${imageId}/output`,
   batchRetryFailed: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/retry-failed`,
   batchProductRetry: (productId: string) => `${API_BASE_URL}/api/batches/products/${productId}/retry`,
+  batchProductPublish: (productId: string) => `${API_BASE_URL}/api/batches/products/${productId}/publish`,
+  batchProductRetryPublish: (productId: string) =>
+    `${API_BASE_URL}/api/batches/products/${productId}/retry-publish`,
+  batchProductPublishConflict: (productId: string) =>
+    `${API_BASE_URL}/api/batches/products/${productId}/publish-conflict`,
+  batchPublishReady: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/publish-ready`,
 
   // Catalog products (Jobs picker)
   catalogProducts: `${API_BASE_URL}/api/products`,

@@ -27,8 +27,37 @@ type PickerProduct = {
 };
 
 const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
+const TERMINAL_BATCH_STATUSES = new Set(["COMPLETED", "PARTIALLY_COMPLETED", "FAILED", "CANCELLED"]);
+const ACTIVE_PUBLISH_STATUSES = new Set(["QUEUED", "PUBLISHING"]);
 const PAGE_SIZE = 20;
 const DEFAULT_MANUAL_BATCH_LIMIT = 50;
+
+function shopifyAdminProductUrl(gid: string): string | null {
+  const match = /Product\/(\d+)/.exec(gid);
+  return match ? `shopify://admin/products/${match[1]}` : null;
+}
+
+function publishStageLabel(status: string | null | undefined): string {
+  if (!status) return "";
+  switch (status) {
+    case "READY_TO_PUBLISH":
+      return "Ready to publish";
+    case "QUEUED":
+      return "Publish queued";
+    case "PUBLISHING":
+      return "Publishing…";
+    case "PUBLISHED":
+      return "Published";
+    case "PUBLISH_FAILED":
+      return "Publish failed";
+    case "PUBLISH_CONFLICT":
+      return "Publish conflict";
+    case "RESTORE_FAILED":
+      return "Restore failed — review in Shopify";
+    default:
+      return status;
+  }
+}
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -71,6 +100,10 @@ export default function JobsPage() {
   const [message, setMessage] = useState("");
   const [retryConfirmOpen, setRetryConfirmOpen] = useState(false);
   const [retryBusy, setRetryBusy] = useState(false);
+  const [publishBusyId, setPublishBusyId] = useState<string | null>(null);
+  const [publishAllBusy, setPublishAllBusy] = useState(false);
+  const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
+  const [conflictText, setConflictText] = useState("");
 
   const pollInFlight = useRef(false);
 
@@ -78,8 +111,9 @@ export default function JobsPage() {
     if (!secondarySummary) return false;
     const secondaryActive = secondarySummary.pending > 0 || secondarySummary.claimed > 0;
     const batchesActive = batches.some((b) => ACTIVE_BATCH_STATUSES.has(b.status));
-    return secondaryActive || batchesActive;
-  }, [secondarySummary, batches]);
+    const publishActive = batchProducts.some((p) => ACTIVE_PUBLISH_STATUSES.has(p.publishStatus ?? ""));
+    return secondaryActive || batchesActive || publishActive;
+  }, [secondarySummary, batches, batchProducts]);
 
   const loadSecondary = useCallback(
     async (page: number, statusFilter: string) => {
