@@ -6,6 +6,7 @@ import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, SecondaryQueueSummary, SyncStatus } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
+import { appPath } from "../utils/routes";
 
 type HealthState = "checking" | "ok" | "down";
 
