@@ -27,5 +27,21 @@ export default defineConfig({
         : undefined,
       protocol: process.env.VITE_HMR_PROTOCOL as "ws" | "wss" | undefined,
     },
+    // Browser calls the UI host (ngrok). Vite forwards API paths to FastAPI.
+    // Avoids broken guest/hotspot DNS for *.trycloudflare.com.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
+      },
+      "/health": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
+      },
+      "/tenant": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
+      },
+    },
   },
 });

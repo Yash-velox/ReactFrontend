@@ -379,6 +379,7 @@ export default function JobsPage() {
                   <option value="FAILED_CONVERSION">Failed</option>
                 </select>
               </div>
+            </div>
 
             {secondaryItems.length === 0 ? (
               <EmptyState
@@ -515,165 +516,19 @@ export default function JobsPage() {
                     disabled={batchPage <= 1}
                     onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
                   >
-                    <option value="">All statuses</option>
-                    <option value="PENDING">Pending</option>
-                    <option value="CLAIMED">Claimed</option>
-                    <option value="CONVERTED">Converted</option>
-                    <option value="SKIPPED_NO_ELIGIBLE_IMAGE_DELTA">Skipped</option>
-                    <option value="FAILED_CONVERSION">Failed</option>
-                  </select>
+                    Previous
+                  </s-button>
+                  <s-button
+                    disabled={batchPage >= (batchesPagination.totalPages || 1)}
+                    onClick={() => setBatchPage((p) => p + 1)}
+                  >
+                    Next
+                  </s-button>
                 </div>
-                <s-button onClick={() => void refresh()}>Refresh</s-button>
               </div>
-
-              {secondaryItems.length === 0 ? (
-                <EmptyState
-                  title="Secondary Queue is empty"
-                  description="Webhook-driven product updates will appear here when eligible changes are received."
-                />
-              ) : (
-                <>
-                  <DataTable>
-                    <thead>
-                      <tr>
-                        <th>Product</th>
-                        <th>Revision</th>
-                        <th>Webhooks</th>
-                        <th>First queued</th>
-                        <th>Last queued</th>
-                        <th>Status</th>
-                        <th>Skip / failure</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {secondaryItems.map((item) => (
-                        <tr key={item.id}>
-                          <td>
-                            <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
-                            <br />
-                            <code className="aone-mono" title={item.shopifyProductGid}>
-                              {truncateGid(item.shopifyProductGid)}
-                            </code>
-                          </td>
-                          <td>{item.queueRevision}</td>
-                          <td>{item.webhookCount}</td>
-                          <td>{formatWhen(item.firstQueuedAt)}</td>
-                          <td>{formatWhen(item.lastQueuedAt)}</td>
-                          <td>
-                            <StatusBadge status={item.status} />
-                          </td>
-                          <td className="aone-table-cell-truncate" title={item.skipReason ?? item.failureReason ?? undefined}>
-                            {item.skipReason ?? item.failureReason ?? "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </DataTable>
-
-                  {secondaryPagination ? (
-                    <div className="aone-pagination">
-                      <p className="aone-pagination-meta">
-                        Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
-                        {secondaryPagination.totalItems} items
-                      </p>
-                      <div className="aone-toolbar">
-                        <s-button
-                          disabled={secondaryPage <= 1}
-                          onClick={() => setSecondaryPage((p) => Math.max(1, p - 1))}
-                        >
-                          Previous
-                        </s-button>
-                        <s-button
-                          disabled={secondaryPage >= (secondaryPagination.totalPages || 1)}
-                          onClick={() => setSecondaryPage((p) => p + 1)}
-                        >
-                          Next
-                        </s-button>
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </s-stack>
-          )}
-        </s-section>
-
-        <s-section heading="Batches">
-          {loading && batches.length === 0 ? (
-            <PageSkeleton metricCount={0} tableRows={4} />
-          ) : batches.length === 0 ? (
-            <EmptyState
-              title="No batches yet"
-              description="Create a manual batch above or enable Auto Sync in Settings to process Secondary Queue items."
-            />
-          ) : (
-            <>
-              <DataTable>
-                <thead>
-                  <tr>
-                    <th>Batch</th>
-                    <th>Trigger</th>
-                    <th>Status</th>
-                    <th>Products</th>
-                    <th>Images</th>
-                    <th>Completed</th>
-                    <th>Failed</th>
-                    <th>Retrying</th>
-                    <th>Created</th>
-                    <th>Completed at</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batches.map((batch) => (
-                    <tr
-                      key={batch.id}
-                      className={`aone-table-row-clickable${selectedBatchId === batch.id ? " aone-table-row-selected" : ""}`}
-                      onClick={() => openBatchDetail(batch.id)}
-                    >
-                      <td>
-                        <code className="aone-mono">{batch.id.slice(0, 8)}</code>
-                      </td>
-                      <td>
-                        <StatusBadge status={batch.triggerType} />
-                      </td>
-                      <td>
-                        <StatusBadge status={batch.status} />
-                      </td>
-                      <td>{batch.productCount}</td>
-                      <td>{batch.imageCount}</td>
-                      <td>{batch.completedProductCount}</td>
-                      <td>{batch.failedProductCount}</td>
-                      <td>{batch.retryingProductCount}</td>
-                      <td>{formatWhen(batch.createdAt)}</td>
-                      <td>{formatWhen(batch.completedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </DataTable>
-
-              {batchesPagination ? (
-                <div className="aone-pagination">
-                  <p className="aone-pagination-meta">
-                    Page {batchesPagination.page} of {batchesPagination.totalPages || 1}
-                  </p>
-                  <div className="aone-toolbar">
-                    <s-button
-                      disabled={batchPage <= 1}
-                      onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
-                    >
-                      Previous
-                    </s-button>
-                    <s-button
-                      disabled={batchPage >= (batchesPagination.totalPages || 1)}
-                      onClick={() => setBatchPage((p) => p + 1)}
-                    >
-                      Next
-                    </s-button>
-                  </div>
-                </div>
-              ) : null}
-            </>
-          )}
+            ) : null}
+          </>
+        )}
         </s-section>
 
         {selectedBatchId && selectedBatch ? (
@@ -796,8 +651,6 @@ export default function JobsPage() {
             </div>
           </s-section>
         ) : null}
-      </div>
-
       </div>
 
       <ConfirmDialog
