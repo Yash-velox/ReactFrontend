@@ -46,6 +46,22 @@ export const endpoints = {
   batchRetryFailed: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/retry-failed`,
   batchProductRetry: (productId: string) => `${API_BASE_URL}/api/batches/products/${productId}/retry`,
 
+  // Catalog products (Jobs picker)
+  catalogProducts: `${API_BASE_URL}/api/products`,
+  catalogProductMatchingGids: `${API_BASE_URL}/api/products/matching-gids`,
+  catalogProductTypes: `${API_BASE_URL}/api/products/product-types`,
+
+  // Prompt Management
+  promptVariables: `${API_BASE_URL}/api/prompts/variables`,
+  promptProductTypes: `${API_BASE_URL}/api/prompts/product-types`,
+  promptProductType: (id: string) => `${API_BASE_URL}/api/prompts/product-types/${id}`,
+  promptConfiguration: (id: string) => `${API_BASE_URL}/api/prompts/product-types/${id}/configuration`,
+  promptProductTypeSteps: (id: string) => `${API_BASE_URL}/api/prompts/product-types/${id}/steps`,
+  promptProductTypeStepsReorder: (id: string) =>
+    `${API_BASE_URL}/api/prompts/product-types/${id}/steps/reorder`,
+  promptStep: (stepId: string) => `${API_BASE_URL}/api/prompts/steps/${stepId}`,
+  promptStepStatus: (stepId: string) => `${API_BASE_URL}/api/prompts/steps/${stepId}/status`,
+
   // Legacy queue (Phase 1 — unused in Week 2 UI)
   queueSummary: `${API_BASE_URL}/api/processing-queue/summary`,
   queueList: `${API_BASE_URL}/api/processing-queue`,

@@ -149,18 +149,6 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
           </div>
         </div>
 
-        <div className="aone-field-group aone-field-group-wide">
-          <span className="aone-field-label">Media GID</span>
-          <code className="aone-mono">{image.shopifyMediaGid}</code>
-        </div>
-
-        {image.originalFilename ? (
-          <div className="aone-field-group aone-field-group-wide">
-            <span className="aone-field-label">Filename</span>
-            <code className="aone-mono">{image.originalFilename}</code>
-          </div>
-        ) : null}
-
         {image.errorMessage ? (
           <s-banner tone="critical" heading={image.errorCode ?? "Processing error"}>
             <s-paragraph>{image.errorMessage}</s-paragraph>

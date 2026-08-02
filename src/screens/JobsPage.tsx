@@ -6,6 +6,7 @@ import ErrorBanner from "../components/ui/ErrorBanner";
 import ImageCompareDialog from "../components/ui/ImageCompareDialog";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
+import ProductPickerDialog from "../components/ui/ProductPickerDialog";
 import StatusBadge from "../components/ui/StatusBadge";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
@@ -27,6 +28,16 @@ type PickerProduct = {
 
 const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
 const PAGE_SIZE = 20;
+const DEFAULT_MANUAL_BATCH_LIMIT = 50;
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  const n = Math.max(1, size);
+  for (let i = 0; i < items.length; i += n) {
+    chunks.push(items.slice(i, i + n));
+  }
+  return chunks;
+}
 
 export default function JobsPage() {
   const authenticatedFetch = useAuthenticatedFetch();
@@ -51,7 +62,8 @@ export default function JobsPage() {
   // Manual batch
   const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
   const [creatingBatch, setCreatingBatch] = useState(false);
-  const [pickerUnavailable, setPickerUnavailable] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [manualBatchLimit, setManualBatchLimit] = useState(DEFAULT_MANUAL_BATCH_LIMIT);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -157,31 +169,10 @@ export default function JobsPage() {
     void loadBatchDetail(batchId);
   };
 
-  const openResourcePicker = async () => {
-    setPickerUnavailable(false);
+  const openProductPicker = () => {
     setMessage("");
-    const picker = window.shopify?.resourcePicker;
-    if (!picker) {
-      setPickerUnavailable(true);
-      setError(
-        "Resource Picker is unavailable outside Shopify Admin. Open this app embedded in Admin to select products.",
-      );
-      return;
-    }
-
-    try {
-      const selected = await picker({ type: "product", multiple: true });
-      if (!selected?.length) return;
-      setPickedProducts(
-        selected.map((p) => ({
-          id: p.id,
-          title: p.title,
-        })),
-      );
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Resource Picker failed");
-    }
+    setError("");
+    setPickerOpen(true);
   };
 
   const createManualBatch = async () => {
@@ -190,16 +181,32 @@ export default function JobsPage() {
     setError("");
     setMessage("");
     try {
-      const response = await authenticatedFetch(endpoints.batchesManual, {
-        method: "POST",
-        body: JSON.stringify({ productGids: pickedProducts.map((p) => p.id) }),
-      });
-      const batch = await parseApiResponse<Batch>(response);
-      setMessage(`Batch created with ${batch.productCount} product(s) and ${batch.imageCount} image(s).`);
+      const chunks = chunkArray(pickedProducts, manualBatchLimit);
+      const created: Batch[] = [];
+      for (const chunk of chunks) {
+        const response = await authenticatedFetch(endpoints.batchesManual, {
+          method: "POST",
+          body: JSON.stringify({ productGids: chunk.map((p) => p.id) }),
+        });
+        const batch = await parseApiResponse<Batch>(response);
+        created.push(batch);
+      }
+      const totalProducts = created.reduce((sum, b) => sum + b.productCount, 0);
+      const totalImages = created.reduce((sum, b) => sum + b.imageCount, 0);
+      const last = created[created.length - 1];
+      if (created.length === 1) {
+        setMessage(
+          `Batch created with ${totalProducts} product(s) and ${totalImages} image(s).`,
+        );
+      } else {
+        setMessage(
+          `Created ${created.length} batches from ${totalProducts} product(s) (${totalImages} image(s)), split at ${manualBatchLimit} products per batch.`,
+        );
+      }
       setPickedProducts([]);
       setBatchPage(1);
       await loadBatches(1);
-      openBatchDetail(batch.id);
+      if (last) openBatchDetail(last.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create batch");
     } finally {
@@ -268,20 +275,12 @@ export default function JobsPage() {
       <s-section heading="Manual batch creation">
         <s-stack direction="block" gap="base">
           <s-paragraph>
-            Select products with the Shopify Resource Picker, then create a product-based processing batch.
+            Select synced catalog products (search, filter, select all matches), then create one or
+            more product-based processing batches. Large selections are split automatically.
           </s-paragraph>
 
-          {pickerUnavailable ? (
-            <s-banner tone="warning" heading="Resource Picker unavailable">
-              <s-paragraph>
-                Open this app inside Shopify Admin to use the native product picker. Product GIDs are
-                required for manual batches.
-              </s-paragraph>
-            </s-banner>
-          ) : null}
-
-          <div className="aone-toolbar">
-            <s-button variant="primary" onClick={() => void openResourcePicker()} disabled={creatingBatch}>
+          <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+            <s-button variant="primary" onClick={openProductPicker} disabled={creatingBatch}>
               Select products
             </s-button>
             <s-button
@@ -289,16 +288,25 @@ export default function JobsPage() {
               onClick={() => void createManualBatch()}
               disabled={creatingBatch || pickedProducts.length === 0}
             >
-              {creatingBatch ? "Creating…" : "Create batch"}
+              {creatingBatch
+                ? "Creating…"
+                : pickedProducts.length > manualBatchLimit
+                  ? `Create ${Math.ceil(pickedProducts.length / manualBatchLimit)} batches`
+                  : "Create batch"}
             </s-button>
             {pickedProducts.length > 0 ? (
-              <s-badge tone="info">{pickedProducts.length} selected</s-badge>
+              <s-badge tone="info">
+                {pickedProducts.length} selected
+                {pickedProducts.length > manualBatchLimit
+                  ? ` · ${Math.ceil(pickedProducts.length / manualBatchLimit)} batches`
+                  : ""}
+              </s-badge>
             ) : null}
           </div>
 
           {pickedProducts.length > 0 ? (
             <div className="aone-chip-list">
-              {pickedProducts.map((product) => (
+              {pickedProducts.slice(0, 40).map((product) => (
                 <span key={product.id} className="aone-chip">
                   {product.title ?? formatGid(product.id)}
                   <button
@@ -313,39 +321,199 @@ export default function JobsPage() {
                   </button>
                 </span>
               ))}
+              {pickedProducts.length > 40 ? (
+                <span className="aone-chip">+{pickedProducts.length - 40} more</span>
+              ) : null}
             </div>
           ) : null}
+
         </s-stack>
       </s-section>
+
+      <ProductPickerDialog
+        open={pickerOpen}
+        initialSelected={pickedProducts}
+        onCancel={() => setPickerOpen(false)}
+        onConfirm={(products, limit) => {
+          setManualBatchLimit(limit || DEFAULT_MANUAL_BATCH_LIMIT);
+          setPickedProducts(products);
+          setPickerOpen(false);
+          setError("");
+        }}
+      />
 
       <div className="aone-jobs-stack">
         <s-section heading="Secondary Queue">
           <div id="secondary-queue" className="aone-section-anchor" />
           {loading && !secondarySummary ? (
-            <PageSkeleton metricCount={5} tableRows={4} />
-          ) : (
-            <s-stack direction="block" gap="base">
-              <div className="aone-metrics">
-                <MetricCard label="Pending" value={secondarySummary?.pending ?? 0} badgeTone="caution" badgeLabel="Awaiting" />
-                <MetricCard label="Claimed" value={secondarySummary?.claimed ?? 0} badgeTone="info" badgeLabel="In progress" />
-                <MetricCard label="Converted" value={secondarySummary?.converted ?? 0} badgeTone="success" badgeLabel="Done" />
-                <MetricCard label="Skipped" value={secondarySummary?.skipped ?? 0} badgeTone="neutral" badgeLabel="No delta" />
-                <MetricCard label="Failed" value={secondarySummary?.failed ?? 0} badgeTone="critical" badgeLabel="Errors" />
+          <PageSkeleton metricCount={5} tableRows={4} />
+        ) : (
+          <s-stack direction="block" gap="base">
+            <div className="aone-metrics">
+              <MetricCard label="Pending" value={secondarySummary?.pending ?? 0} badgeTone="caution" badgeLabel="Awaiting" />
+              <MetricCard label="Claimed" value={secondarySummary?.claimed ?? 0} badgeTone="info" badgeLabel="In progress" />
+              <MetricCard label="Converted" value={secondarySummary?.converted ?? 0} badgeTone="success" badgeLabel="Done" />
+              <MetricCard label="Skipped" value={secondarySummary?.skipped ?? 0} badgeTone="neutral" badgeLabel="No delta" />
+              <MetricCard label="Failed" value={secondarySummary?.failed ?? 0} badgeTone="critical" badgeLabel="Errors" />
+            </div>
+
+            <div className="aone-toolbar aone-toolbar-spread">
+              <div className="aone-field-group" style={{ maxWidth: 220 }}>
+                <label className="aone-field-label" htmlFor="sq-status">
+                  Status filter
+                </label>
+                <select
+                  id="sq-status"
+                  className="aone-select"
+                  value={secondaryStatusFilter}
+                  onChange={(e) => {
+                    setSecondaryStatusFilter(e.target.value);
+                    setSecondaryPage(1);
+                  }}
+                >
+                  <option value="">All statuses</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="CLAIMED">Claimed</option>
+                  <option value="CONVERTED">Converted</option>
+                  <option value="SKIPPED_NO_ELIGIBLE_IMAGE_DELTA">Skipped</option>
+                  <option value="FAILED_CONVERSION">Failed</option>
+                </select>
               </div>
 
-              <div className="aone-toolbar aone-toolbar-spread">
-                <div className="aone-field-group" style={{ maxWidth: 220 }}>
-                  <label className="aone-field-label" htmlFor="sq-status">
-                    Status filter
-                  </label>
-                  <select
-                    id="sq-status"
-                    className="aone-select"
-                    value={secondaryStatusFilter}
-                    onChange={(e) => {
-                      setSecondaryStatusFilter(e.target.value);
-                      setSecondaryPage(1);
-                    }}
+            {secondaryItems.length === 0 ? (
+              <EmptyState
+                title="Secondary Queue is empty"
+                description="Webhook-driven product updates will appear here when eligible changes are received."
+              />
+            ) : (
+              <>
+                <DataTable>
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Revision</th>
+                      <th>Webhooks</th>
+                      <th>First queued</th>
+                      <th>Last queued</th>
+                      <th>Status</th>
+                      <th>Skip / failure</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {secondaryItems.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
+                          <br />
+                          <code className="aone-mono" title={item.shopifyProductGid}>
+                            {truncateGid(item.shopifyProductGid)}
+                          </code>
+                        </td>
+                        <td>{item.queueRevision}</td>
+                        <td>{item.webhookCount}</td>
+                        <td>{formatWhen(item.firstQueuedAt)}</td>
+                        <td>{formatWhen(item.lastQueuedAt)}</td>
+                        <td>
+                          <StatusBadge status={item.status} />
+                        </td>
+                        <td className="aone-table-cell-truncate" title={item.skipReason ?? item.failureReason ?? undefined}>
+                          {item.skipReason ?? item.failureReason ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </DataTable>
+
+                {secondaryPagination ? (
+                  <div className="aone-pagination">
+                    <p className="aone-pagination-meta">
+                      Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
+                      {secondaryPagination.totalItems} items
+                    </p>
+                    <div className="aone-toolbar">
+                      <s-button
+                        disabled={secondaryPage <= 1}
+                        onClick={() => setSecondaryPage((p) => Math.max(1, p - 1))}
+                      >
+                        Previous
+                      </s-button>
+                      <s-button
+                        disabled={secondaryPage >= (secondaryPagination.totalPages || 1)}
+                        onClick={() => setSecondaryPage((p) => p + 1)}
+                      >
+                        Next
+                      </s-button>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </s-stack>
+        )}
+        </s-section>
+
+        <s-section heading="Batches">
+        {loading && batches.length === 0 ? (
+          <PageSkeleton metricCount={0} tableRows={4} />
+        ) : batches.length === 0 ? (
+          <EmptyState
+            title="No batches yet"
+            description="Create a manual batch above or enable Auto Sync in Settings to process Secondary Queue items."
+          />
+        ) : (
+          <>
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Batch</th>
+                  <th>Trigger</th>
+                  <th>Status</th>
+                  <th>Products</th>
+                  <th>Images</th>
+                  <th>Completed</th>
+                  <th>Failed</th>
+                  <th>Retrying</th>
+                  <th>Created</th>
+                  <th>Completed at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {batches.map((batch) => (
+                  <tr
+                    key={batch.id}
+                    className={`aone-table-row-clickable${selectedBatchId === batch.id ? " aone-table-row-selected" : ""}`}
+                    onClick={() => openBatchDetail(batch.id)}
+                  >
+                    <td>
+                      <code className="aone-mono">{batch.id.slice(0, 8)}</code>
+                    </td>
+                    <td>
+                      <StatusBadge status={batch.triggerType} />
+                    </td>
+                    <td>
+                      <StatusBadge status={batch.status} />
+                    </td>
+                    <td>{batch.productCount}</td>
+                    <td>{batch.imageCount}</td>
+                    <td>{batch.completedProductCount}</td>
+                    <td>{batch.failedProductCount}</td>
+                    <td>{batch.retryingProductCount}</td>
+                    <td>{formatWhen(batch.createdAt)}</td>
+                    <td>{formatWhen(batch.completedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+
+            {batchesPagination ? (
+              <div className="aone-pagination">
+                <p className="aone-pagination-meta">
+                  Page {batchesPagination.page} of {batchesPagination.totalPages || 1}
+                </p>
+                <div className="aone-toolbar">
+                  <s-button
+                    disabled={batchPage <= 1}
+                    onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
                   >
                     <option value="">All statuses</option>
                     <option value="PENDING">Pending</option>
@@ -628,6 +796,8 @@ export default function JobsPage() {
             </div>
           </s-section>
         ) : null}
+      </div>
+
       </div>
 
       <ConfirmDialog
