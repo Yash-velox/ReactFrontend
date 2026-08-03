@@ -1,6 +1,7 @@
 /**
  * Central API base URL + endpoint paths (Retention Hub pattern).
- * Backend public URL comes from VITE_API_BASE_URL (Cloudflare tunnel in dev).
+ * In local/ngrok dev, VITE_API_BASE_URL is the UI host; Vite proxies
+ * /api, /health, /tenant to FastAPI on :8080 (avoids flaky trycloudflare DNS).
  */
 
 const trimSlash = (value: string) => value.replace(/\/+$/, "");

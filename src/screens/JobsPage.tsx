@@ -560,7 +560,6 @@ export default function JobsPage() {
                   <option value="FAILED_CONVERSION">Failed</option>
                 </select>
               </div>
-              <s-button onClick={() => void refresh()}>Refresh</s-button>
             </div>
 
             {secondaryItems.length === 0 ? (
@@ -711,214 +710,213 @@ export default function JobsPage() {
             ) : null}
           </>
         )}
-      </s-section>
+        </s-section>
 
-      {selectedBatchId && selectedBatch ? (
-        <s-section heading="Batch detail">
-          <div className="aone-detail-panel">
-            <div className="aone-detail-header">
-              <s-stack direction="block" gap="small">
-                <s-text>
-                  Batch <code className="aone-mono">{selectedBatchId}</code>
-                </s-text>
-                <s-stack direction="inline" gap="small">
-                  <StatusBadge status={selectedBatch.triggerType} />
-                  <StatusBadge status={selectedBatch.status} />
+        {selectedBatchId && selectedBatch ? (
+          <s-section heading="Batch detail">
+            <div className="aone-detail-panel">
+              <div className="aone-detail-header">
+                <s-stack direction="block" gap="small">
+                  <s-text>
+                    Batch <code className="aone-mono">{selectedBatchId}</code>
+                  </s-text>
+                  <s-stack direction="inline" gap="small">
+                    <StatusBadge status={selectedBatch.triggerType} />
+                    <StatusBadge status={selectedBatch.status} />
+                  </s-stack>
+                  {selectedBatch.errorSummary ? (
+                    <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
+                  ) : null}
                 </s-stack>
-                {selectedBatch.errorSummary ? (
-                  <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
-                ) : null}
-              </s-stack>
-              <div className="aone-toolbar">
-                {canPublishAll ? (
-                  <s-button
-                    variant="primary"
-                    disabled={publishAllBusy}
-                    onClick={() => void publishAllReady()}
-                  >
-                    {publishAllBusy ? "Queuing…" : "Publish All Ready Products"}
-                  </s-button>
-                ) : null}
-                {selectedBatch.failedProductCount > 0 ? (
-                  <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
-                    Retry failed
-                  </s-button>
-                ) : null}
-                <s-button onClick={() => setSelectedBatchId(null)}>Close</s-button>
+                <div className="aone-toolbar">
+                  {canPublishAll ? (
+                    <s-button
+                      variant="primary"
+                      disabled={publishAllBusy}
+                      onClick={() => void publishAllReady()}
+                    >
+                      {publishAllBusy ? "Queuing…" : "Publish All Ready Products"}
+                    </s-button>
+                  ) : null}
+                  {selectedBatch.failedProductCount > 0 ? (
+                    <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
+                      Retry failed
+                    </s-button>
+                  ) : null}
+                  <s-button onClick={() => setSelectedBatchId(null)}>Close</s-button>
+                </div>
               </div>
-            </div>
 
-            {detailLoading ? (
-              <PageSkeleton metricCount={0} tableRows={3} />
-            ) : (
-              <s-stack direction="block" gap="base">
-                {TERMINAL_BATCH_STATUSES.has(selectedBatch.status) ? (
-                  <div className="aone-metrics">
-                    <MetricCard label="Ready to Publish" value={publishSummary.ready} />
-                    <MetricCard label="Queued" value={publishSummary.queued} />
-                    <MetricCard label="Publishing" value={publishSummary.publishing} />
-                    <MetricCard label="Published" value={publishSummary.published} badgeTone="success" />
-                    <MetricCard label="Publish Failed" value={publishSummary.failed} badgeTone="critical" />
-                    <MetricCard label="Conflict" value={publishSummary.conflict} badgeTone="caution" />
-                  </div>
-                ) : null}
+              {detailLoading ? (
+                <PageSkeleton metricCount={0} tableRows={3} />
+              ) : (
+                <s-stack direction="block" gap="base">
+                  {TERMINAL_BATCH_STATUSES.has(selectedBatch.status) ? (
+                    <div className="aone-metrics">
+                      <MetricCard label="Ready to Publish" value={publishSummary.ready} />
+                      <MetricCard label="Queued" value={publishSummary.queued} />
+                      <MetricCard label="Publishing" value={publishSummary.publishing} />
+                      <MetricCard label="Published" value={publishSummary.published} badgeTone="success" />
+                      <MetricCard label="Publish Failed" value={publishSummary.failed} badgeTone="critical" />
+                      <MetricCard label="Conflict" value={publishSummary.conflict} badgeTone="caution" />
+                    </div>
+                  ) : null}
 
-                {publishSummary.restoreFailed > 0 ? (
-                  <s-banner tone="critical" heading="Restore failed">
-                    <s-paragraph>
-                      Automatic restoration could not be verified for {publishSummary.restoreFailed}{" "}
-                      product(s). Manual Shopify review is required.
-                    </s-paragraph>
-                  </s-banner>
-                ) : null}
+                  {publishSummary.restoreFailed > 0 ? (
+                    <s-banner tone="critical" heading="Restore failed">
+                      <s-paragraph>
+                        Automatic restoration could not be verified for {publishSummary.restoreFailed}{" "}
+                        product(s). Manual Shopify review is required.
+                      </s-paragraph>
+                    </s-banner>
+                  ) : null}
 
-                <s-heading>Products</s-heading>
-                {batchProducts.length === 0 ? (
-                  <EmptyState title="No products" description="This batch has no product records." />
-                ) : (
-                  <DataTable>
-                    <thead>
-                      <tr>
-                        <th>Product GID</th>
-                        <th>Status</th>
-                        <th>Publish</th>
-                        <th>Images</th>
-                        <th>Retries</th>
-                        <th>Error</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {batchProducts.map((product) => {
-                        const adminUrl = shopifyAdminProductUrl(product.shopifyProductGid);
-                        const pub = product.publishStatus;
-                        const busy = publishBusyId === product.id;
-                        return (
-                          <tr key={product.id}>
+                  <s-heading>Products</s-heading>
+                  {batchProducts.length === 0 ? (
+                    <EmptyState title="No products" description="This batch has no product records." />
+                  ) : (
+                    <DataTable>
+                      <thead>
+                        <tr>
+                          <th>Product GID</th>
+                          <th>Status</th>
+                          <th>Publish</th>
+                          <th>Images</th>
+                          <th>Retries</th>
+                          <th>Error</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batchProducts.map((product) => {
+                          const adminUrl = shopifyAdminProductUrl(product.shopifyProductGid);
+                          const pub = product.publishStatus;
+                          const busy = publishBusyId === product.id;
+                          return (
+                            <tr key={product.id}>
+                              <td>
+                                <code className="aone-mono" title={product.shopifyProductGid}>
+                                  {truncateGid(product.shopifyProductGid)}
+                                </code>
+                              </td>
+                              <td>
+                                <StatusBadge status={product.status} />
+                              </td>
+                              <td>
+                                {pub ? (
+                                  <StatusBadge status={pub} />
+                                ) : (
+                                  "—"
+                                )}
+                                {pub && ACTIVE_PUBLISH_STATUSES.has(pub) ? (
+                                  <>
+                                    <br />
+                                    <s-text tone="neutral">{publishStageLabel(pub)}</s-text>
+                                  </>
+                                ) : null}
+                              </td>
+                              <td>{product.imageCount}</td>
+                              <td>{product.retryCount}</td>
+                              <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
+                                {product.errorMessage ?? "—"}
+                              </td>
+                              <td>
+                                <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+                                  {product.status === "FAILED" ? (
+                                    <s-button onClick={() => void retryProduct(product.id)}>
+                                      Retry Processing
+                                    </s-button>
+                                  ) : null}
+                                  {pub === "READY_TO_PUBLISH" && !autoPublishEnabled ? (
+                                    <s-button
+                                      variant="primary"
+                                      disabled={busy || Boolean(publishBusyId)}
+                                      onClick={() => void publishProduct(product.id)}
+                                    >
+                                      {busy ? "Queuing…" : "Publish to Shopify"}
+                                    </s-button>
+                                  ) : null}
+                                  {pub === "PUBLISH_FAILED" || pub === "RESTORE_FAILED" ? (
+                                    <s-button
+                                      disabled={busy}
+                                      onClick={() => void retryPublish(product.id)}
+                                    >
+                                      {busy ? "Queuing…" : "Retry Publish"}
+                                    </s-button>
+                                  ) : null}
+                                  {pub === "PUBLISH_CONFLICT" ? (
+                                    <s-button onClick={() => void reviewConflict(product.id)}>
+                                      Review Conflict
+                                    </s-button>
+                                  ) : null}
+                                  {pub === "PUBLISHED" && adminUrl ? (
+                                    <s-link href={adminUrl} target="_blank">
+                                      View Shopify Product
+                                    </s-link>
+                                  ) : null}
+                                  {pub === "PUBLISHED" && product.productId ? (
+                                    <s-button
+                                      onClick={() => navigateApp(`/products/${product.productId}/versions`)}
+                                    >
+                                      View Versions
+                                    </s-button>
+                                  ) : null}
+                                  {!pub && product.status !== "FAILED" ? "—" : null}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </DataTable>
+                  )}
+
+                  <s-heading>Images</s-heading>
+                  {batchImages.length === 0 ? (
+                    <EmptyState title="No images" description="This batch has no image work items." />
+                  ) : (
+                    <DataTable>
+                      <thead>
+                        <tr>
+                          <th>Media GID</th>
+                          <th>Delta</th>
+                          <th>Status</th>
+                          <th>Attempts</th>
+                          <th>Error</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {batchImages.map((image) => (
+                          <tr key={image.id}>
                             <td>
-                              <code className="aone-mono" title={product.shopifyProductGid}>
-                                {truncateGid(product.shopifyProductGid)}
+                              <code className="aone-mono" title={image.shopifyMediaGid}>
+                                {truncateGid(image.shopifyMediaGid)}
                               </code>
                             </td>
                             <td>
-                              <StatusBadge status={product.status} />
+                              <StatusBadge status={image.deltaType} />
                             </td>
                             <td>
-                              {pub ? (
-                                <StatusBadge status={pub} />
-                              ) : (
-                                "—"
-                              )}
-                              {pub && ACTIVE_PUBLISH_STATUSES.has(pub) ? (
-                                <>
-                                  <br />
-                                  <s-text tone="neutral">{publishStageLabel(pub)}</s-text>
-                                </>
-                              ) : null}
+                              <StatusBadge status={image.status} />
                             </td>
-                            <td>{product.imageCount}</td>
-                            <td>{product.retryCount}</td>
-                            <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
-                              {product.errorMessage ?? "—"}
+                            <td>{image.attemptCount}</td>
+                            <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
+                              {image.errorMessage ?? "—"}
                             </td>
                             <td>
-                              <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
-                                {product.status === "FAILED" ? (
-                                  <s-button onClick={() => void retryProduct(product.id)}>
-                                    Retry Processing
-                                  </s-button>
-                                ) : null}
-                                {pub === "READY_TO_PUBLISH" && !autoPublishEnabled ? (
-                                  <s-button
-                                    variant="primary"
-                                    disabled={busy || Boolean(publishBusyId)}
-                                    onClick={() => void publishProduct(product.id)}
-                                  >
-                                    {busy ? "Queuing…" : "Publish to Shopify"}
-                                  </s-button>
-                                ) : null}
-                                {pub === "PUBLISH_FAILED" || pub === "RESTORE_FAILED" ? (
-                                  <s-button
-                                    disabled={busy}
-                                    onClick={() => void retryPublish(product.id)}
-                                  >
-                                    {busy ? "Queuing…" : "Retry Publish"}
-                                  </s-button>
-                                ) : null}
-                                {pub === "PUBLISH_CONFLICT" ? (
-                                  <s-button onClick={() => void reviewConflict(product.id)}>
-                                    Review Conflict
-                                  </s-button>
-                                ) : null}
-                                {pub === "PUBLISHED" && adminUrl ? (
-                                  <s-link href={adminUrl} target="_blank">
-                                    View Shopify Product
-                                  </s-link>
-                                ) : null}
-                                {pub === "PUBLISHED" && product.productId ? (
-                                  <s-button
-                                    onClick={() => navigateApp(`/products/${product.productId}/versions`)}
-                                  >
-                                    View Versions
-                                  </s-button>
-                                ) : null}
-                                {!pub && product.status !== "FAILED" ? "—" : null}
-                              </div>
+                              <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
                             </td>
                           </tr>
-                        );
-                      })}
-                    </tbody>
-                  </DataTable>
-                )}
-
-                <s-heading>Images</s-heading>
-                {batchImages.length === 0 ? (
-                  <EmptyState title="No images" description="This batch has no image work items." />
-                ) : (
-                  <DataTable>
-                    <thead>
-                      <tr>
-                        <th>Media GID</th>
-                        <th>Delta</th>
-                        <th>Status</th>
-                        <th>Attempts</th>
-                        <th>Error</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {batchImages.map((image) => (
-                        <tr key={image.id}>
-                          <td>
-                            <code className="aone-mono" title={image.shopifyMediaGid}>
-                              {truncateGid(image.shopifyMediaGid)}
-                            </code>
-                          </td>
-                          <td>
-                            <StatusBadge status={image.deltaType} />
-                          </td>
-                          <td>
-                            <StatusBadge status={image.status} />
-                          </td>
-                          <td>{image.attemptCount}</td>
-                          <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
-                            {image.errorMessage ?? "—"}
-                          </td>
-                          <td>
-                            <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </DataTable>
-                )}
-              </s-stack>
-            )}
-          </div>
-        </s-section>
-      ) : null}
-
+                        ))}
+                      </tbody>
+                    </DataTable>
+                  )}
+                </s-stack>
+              )}
+            </div>
+          </s-section>
+        ) : null}
       </div>
 
       <ConfirmDialog
