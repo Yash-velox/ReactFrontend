@@ -21,17 +21,30 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
   const [outputError, setOutputError] = useState("");
 
   const { id: modalId, ref: modalRef, dismiss } = useModalOverlay(Boolean(image), onClose);
-  const hasOutput = Boolean(image?.outputStorageKey);
+  const cdnAfterUrl = image?.generatedShopifyCdnUrl || "";
+  const hasLocalOutput = Boolean(image?.outputStorageKey);
+  const hasOutput = Boolean(cdnAfterUrl || hasLocalOutput);
 
   useEffect(() => {
     setView("before");
     setOutputError("");
   }, [image?.id]);
 
-  // The processed file is served behind session-token auth, so it must be fetched
-  // as a blob rather than pointed at directly from an <img src>.
+  // Prefer durable Shopify CDN; fall back to authenticated local temp blob.
   useEffect(() => {
-    if (!image || !hasOutput) return;
+    if (!image || !hasOutput) {
+      setOutputUrl("");
+      setOutputLoading(false);
+      return;
+    }
+
+    if (cdnAfterUrl) {
+      setOutputUrl(cdnAfterUrl);
+      setOutputLoading(false);
+      setOutputError("");
+      return;
+    }
+
     let revoked = false;
     let objectUrl = "";
 
@@ -59,13 +72,15 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
       setOutputUrl("");
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [authenticatedFetch, hasOutput, image]);
+  }, [authenticatedFetch, cdnAfterUrl, hasOutput, image]);
 
   const downloadOutput = useCallback(() => {
     if (!outputUrl || !image) return;
     const anchor = document.createElement("a");
     anchor.href = outputUrl;
     anchor.download = `${image.originalFilename ?? image.id}-processed.png`;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
     anchor.click();
   }, [image, outputUrl]);
 
@@ -110,7 +125,9 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
 
         <s-paragraph tone="neutral">
           {showingAfter
-            ? "AI processed output (not yet published to Shopify)."
+            ? cdnAfterUrl
+              ? "AI processed output stored on Shopify CDN (ready to publish)."
+              : "AI processed output (temporary local file; not yet on Shopify CDN)."
             : "Original image currently on Shopify."}
         </s-paragraph>
 

@@ -33,6 +33,22 @@ type MediaVersion = {
   createdAt?: string | null;
   activatedAt?: string | null;
   media?: MediaItem[];
+  linkedImageVersions?: LinkedImageVersion[];
+};
+
+type LinkedImageVersion = {
+  versionId: string;
+  sourceMediaGid: string;
+  versionNumber: number;
+  versionType: string;
+  shopifyFileGid?: string | null;
+  shopifyCdnUrl?: string | null;
+  fileSizeBytes?: number | null;
+  width?: number | null;
+  height?: number | null;
+  isCurrent?: boolean;
+  isPublished?: boolean;
+  isOriginal?: boolean;
 };
 
 type RollbackPreview = {
@@ -78,49 +94,34 @@ function resolveProductId(prop?: string): string {
 function MediaStrip({ media, label }: { media?: MediaItem[]; label: string }) {
   const items = media ?? [];
   return (
-    <div>
-      <s-text type="strong">{label}</s-text>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.5rem" }}>
+    <div className="aone-media-strip">
+      <p className="aone-media-strip-label">{label}</p>
+      <div className="aone-media-grid">
         {items.length === 0 ? (
-          <s-text color="subdued">No images</s-text>
+          <p className="aone-field-hint">No images</p>
         ) : (
           items
             .slice()
             .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
             .map((m, idx) => (
-              <div key={`${m.mediaGid || m.fileGid || idx}`} style={{ width: 88 }}>
+              <figure
+                key={`${m.mediaGid || m.fileGid || idx}`}
+                className={`aone-media-tile${m.isPrimary ? " is-primary" : ""}`}
+              >
                 {m.cdnUrl ? (
                   <img
                     src={m.cdnUrl}
                     alt={m.altText || m.filename || `Image ${idx + 1}`}
-                    style={{
-                      width: 88,
-                      height: 88,
-                      objectFit: "cover",
-                      borderRadius: 6,
-                      border: m.isPrimary ? "2px solid #2c6ecb" : "1px solid #ddd",
-                    }}
+                    className="aone-media-tile-img"
                   />
                 ) : (
-                  <div
-                    style={{
-                      width: 88,
-                      height: 88,
-                      background: "#f3f3f3",
-                      borderRadius: 6,
-                      display: "grid",
-                      placeItems: "center",
-                      fontSize: 11,
-                    }}
-                  >
-                    No preview
-                  </div>
+                  <div className="aone-media-tile-fallback">No preview</div>
                 )}
-                <div style={{ fontSize: 11, marginTop: 4 }}>
+                <figcaption className="aone-media-tile-caption">
                   #{m.position ?? idx}
                   {m.isPrimary ? " · Primary" : ""}
-                </div>
-              </div>
+                </figcaption>
+              </figure>
             ))
         )}
       </div>
@@ -134,6 +135,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [versions, setVersions] = useState<MediaVersion[]>([]);
+  const [activeDetail, setActiveDetail] = useState<MediaVersion | null>(null);
   const [preview, setPreview] = useState<RollbackPreview | null>(null);
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -147,7 +149,22 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     try {
       const res = await authenticatedFetch(endpoints.productMediaVersions(productId));
       const data = await parseApiResponse<{ items: MediaVersion[] }>(res);
-      setVersions(data.items ?? []);
+      const list = data.items ?? [];
+      setVersions(list);
+      const active = list.find((v) => v.isActive);
+      if (active) {
+        try {
+          const detailRes = await authenticatedFetch(
+            endpoints.productMediaVersion(productId, active.versionId),
+          );
+          const detail = await parseApiResponse<MediaVersion>(detailRes);
+          setActiveDetail(detail);
+        } catch {
+          setActiveDetail(null);
+        }
+      } else {
+        setActiveDetail(null);
+      }
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load versions");
@@ -269,12 +286,19 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
 
   return (
     <s-page heading={heading}>
-      <s-stack direction="block" gap="base">
-        <div className="aone-toolbar">
-          <s-button onClick={() => navigateApp("/products/versions")}>Back to search</s-button>
-          <s-button onClick={() => void loadVersions()} disabled={loading}>
-            Refresh
-          </s-button>
+      <div className="aone-versions-page">
+        <div className="aone-toolbar aone-toolbar-spread">
+          <div className="aone-toolbar">
+            <s-button onClick={() => navigateApp("/products/versions")}>Back to search</s-button>
+            <s-button onClick={() => void loadVersions()} disabled={loading}>
+              Refresh
+            </s-button>
+          </div>
+          {versions.find((v) => v.isActive) ? (
+            <s-badge tone="success">
+              Active v{versions.find((v) => v.isActive)?.versionNumber}
+            </s-badge>
+          ) : null}
         </div>
 
         {error ? <ErrorBanner message={error} onRetry={() => void loadVersions()} /> : null}
@@ -316,55 +340,100 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </s-banner>
         ) : null}
 
-        {loading ? (
-          <PageSkeleton />
-        ) : versions.length === 0 ? (
-          <EmptyState
-            title="No versions"
-            description="This product has no media version history yet."
-          />
-        ) : (
-          <DataTable>
-            <thead>
-              <tr>
-                <th>Version</th>
-                <th>Type</th>
-                <th>Created</th>
-                <th>Images</th>
-                <th>Active</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {versions.map((v) => (
-                <tr key={v.versionId}>
-                  <td>v{v.versionNumber}</td>
-                  <td>
-                    <StatusBadge status={v.versionType} />
-                  </td>
-                  <td>{v.createdAt ? new Date(v.createdAt).toLocaleString() : "—"}</td>
-                  <td>{v.imageCount}</td>
-                  <td>{v.isActive ? "Yes" : "No"}</td>
-                  <td>
-                    {v.isActive ? (
-                      "—"
-                    ) : v.rollbackEligible ? (
-                      <s-button
-                        disabled={busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))}
-                        onClick={() => void openPreview(v.versionId)}
-                      >
-                        Revert
-                      </s-button>
-                    ) : (
-                      <s-text color="subdued">{v.unavailableReason || "Unavailable"}</s-text>
-                    )}
-                  </td>
-                </tr>
+        {activeDetail?.linkedImageVersions && activeDetail.linkedImageVersions.length > 0 ? (
+          <s-section heading="Active snapshot">
+            <s-paragraph>
+              Linked image files currently live on this product ({activeDetail.linkedImageVersions.length}{" "}
+              image{activeDetail.linkedImageVersions.length === 1 ? "" : "s"}).
+            </s-paragraph>
+            <div className="aone-media-grid aone-media-grid-lg">
+              {activeDetail.linkedImageVersions.map((iv) => (
+                <figure key={iv.versionId} className="aone-media-tile">
+                  {iv.shopifyCdnUrl ? (
+                    <img
+                      src={iv.shopifyCdnUrl}
+                      alt={`${iv.versionType} v${iv.versionNumber}`}
+                      className="aone-media-tile-img"
+                    />
+                  ) : (
+                    <div className="aone-media-tile-fallback">No preview</div>
+                  )}
+                  <figcaption className="aone-media-tile-caption">
+                    <span className="aone-media-tile-type">
+                      {iv.versionType} v{iv.versionNumber}
+                    </span>
+                    {iv.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
+                    {typeof iv.fileSizeBytes === "number" ? (
+                      <span className="aone-field-hint">{Math.round(iv.fileSizeBytes / 1024)} KB</span>
+                    ) : null}
+                  </figcaption>
+                </figure>
               ))}
-            </tbody>
-          </DataTable>
-        )}
-      </s-stack>
+            </div>
+          </s-section>
+        ) : null}
+
+        <s-section heading="Version history">
+          {loading ? (
+            <PageSkeleton />
+          ) : versions.length === 0 ? (
+            <EmptyState
+              title="No versions"
+              description="This product has no media version history yet."
+            />
+          ) : (
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Version</th>
+                  <th>Type</th>
+                  <th>Created</th>
+                  <th>Images</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {versions.map((v) => (
+                  <tr key={v.versionId} className={v.isActive ? "aone-table-row-selected" : undefined}>
+                    <td>
+                      <s-text type="strong">v{v.versionNumber}</s-text>
+                    </td>
+                    <td>
+                      <StatusBadge status={v.versionType} />
+                    </td>
+                    <td>{v.createdAt ? new Date(v.createdAt).toLocaleString() : "—"}</td>
+                    <td>{v.imageCount}</td>
+                    <td>
+                      {v.isActive ? (
+                        <s-badge tone="success">Active</s-badge>
+                      ) : (
+                        <span className="aone-field-hint">Inactive</span>
+                      )}
+                    </td>
+                    <td>
+                      {v.isActive ? (
+                        <span className="aone-field-hint">Current</span>
+                      ) : v.rollbackEligible ? (
+                        <s-button
+                          disabled={busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))}
+                          onClick={() => void openPreview(v.versionId)}
+                        >
+                          Revert
+                        </s-button>
+                      ) : (
+                        <span className="aone-field-hint" title={v.unavailableReason || undefined}>
+                          {v.unavailableReason || "Unavailable"}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </DataTable>
+          )}
+        </s-section>
+      </div>
 
       <ConfirmDialog
         open={Boolean(preview && previewVersionId)}
@@ -389,9 +458,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                 {preview.unavailableReason || "This version cannot be restored."}
               </s-banner>
             ) : null}
-            <MediaStrip media={preview.current?.media} label={`Current (v${preview.current?.versionNumber ?? "—"})`} />
-            <MediaStrip media={preview.target?.media} label={`Target (v${preview.target?.versionNumber ?? "—"})`} />
-            <label style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+            <div className="aone-versions-compare">
+              <MediaStrip media={preview.current?.media} label={`Current (v${preview.current?.versionNumber ?? "—"})`} />
+              <MediaStrip media={preview.target?.media} label={`Target (v${preview.target?.versionNumber ?? "—"})`} />
+            </div>
+            <label className="aone-checkbox-row">
               <input
                 type="checkbox"
                 checked={confirmChecked}

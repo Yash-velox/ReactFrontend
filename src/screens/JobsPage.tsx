@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
@@ -7,6 +6,9 @@ import ImageCompareDialog from "../components/ui/ImageCompareDialog";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ProductPickerDialog from "../components/ui/ProductPickerDialog";
+import ReprocessPromptDialog, {
+  type ReprocessPreview,
+} from "../components/ui/ReprocessPromptDialog";
 import StatusBadge from "../components/ui/StatusBadge";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
@@ -27,15 +29,41 @@ type PickerProduct = {
   title?: string;
 };
 
+type ReprocessTarget =
+  | { scope: "batch"; batchId: string }
+  | { scope: "product"; productId: string }
+  | { scope: "image"; imageId: string };
+
 const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
 const TERMINAL_BATCH_STATUSES = new Set(["COMPLETED", "PARTIALLY_COMPLETED", "FAILED", "CANCELLED"]);
 const ACTIVE_PUBLISH_STATUSES = new Set(["QUEUED", "PUBLISHING"]);
+const REPROCESSABLE_PRODUCT_STATUSES = new Set([
+  "QUEUED",
+  "RETRYING",
+  "COMPLETED",
+  "FAILED",
+  "SKIPPED",
+]);
+const REPROCESSABLE_IMAGE_STATUSES = new Set(["QUEUED", "RETRYING", "COMPLETED", "FAILED"]);
 const PAGE_SIZE = 20;
 const DEFAULT_MANUAL_BATCH_LIMIT = 50;
 
 function shopifyAdminProductUrl(gid: string): string | null {
   const match = /Product\/(\d+)/.exec(gid);
   return match ? `shopify://admin/products/${match[1]}` : null;
+}
+
+function canReprocessProduct(product: BatchProduct): boolean {
+  if (product.status === "PROCESSING") return false;
+  if (product.publishStatus && ACTIVE_PUBLISH_STATUSES.has(product.publishStatus)) return false;
+  return REPROCESSABLE_PRODUCT_STATUSES.has(product.status);
+}
+
+function canReprocessImage(image: BatchImage, products: BatchProduct[]): boolean {
+  if (!REPROCESSABLE_IMAGE_STATUSES.has(image.status)) return false;
+  const product = products.find((p) => p.id === image.batchProductId);
+  if (!product) return REPROCESSABLE_IMAGE_STATUSES.has(image.status);
+  return canReprocessProduct(product);
 }
 
 function publishStageLabel(status: string | null | undefined): string {
@@ -58,6 +86,99 @@ function publishStageLabel(status: string | null | undefined): string {
     default:
       return status;
   }
+}
+
+function openaiBatchProgress(batch: {
+  status: string;
+  processingPhase?: string | null;
+  currentWorkflowStep?: number;
+  totalWorkflowSteps?: number;
+  openaiRequestsTotal?: number;
+  openaiRequestsCompleted?: number;
+  openaiRequestsFailed?: number;
+}): {
+  title: string;
+  stepLabel: string | null;
+  countLabel: string | null;
+  completed: number;
+  total: number;
+  failed: number;
+} | null {
+  if (batch.status !== "PROCESSING" || !batch.processingPhase) return null;
+  const phase = batch.processingPhase;
+  const stepLabel =
+    batch.totalWorkflowSteps && batch.currentWorkflowStep
+      ? `Step ${batch.currentWorkflowStep} of ${batch.totalWorkflowSteps}`
+      : null;
+  const total = typeof batch.openaiRequestsTotal === "number" ? batch.openaiRequestsTotal : 0;
+  const completed = batch.openaiRequestsCompleted ?? 0;
+  const failed = batch.openaiRequestsFailed ?? 0;
+  const countLabel = total > 0 ? `${completed} of ${total} requests` : null;
+
+  let title: string;
+  if (phase === "WAITING_FOR_OPENAI" || phase === "OPENAI_BATCH_SUBMITTED") {
+    title = "Waiting for OpenAI Batch";
+  } else if (phase === "RETRYING_FAILED_REQUESTS") {
+    title = "Retrying failed OpenAI requests";
+  } else if (phase === "UPLOADING_TO_SHOPIFY_FILES") {
+    title = "Uploading final images to Shopify Files";
+  } else if (phase === "IMPORTING_STAGE_RESULTS" || phase === "COLLECTING_OPENAI_RESULTS") {
+    title = "Collecting OpenAI Batch results";
+  } else {
+    title = phase.replaceAll("_", " ");
+  }
+
+  return { title, stepLabel, countLabel, completed, total, failed };
+}
+
+function OpenAIPhaseLine({
+  batch,
+}: {
+  batch: {
+    status: string;
+    processingPhase?: string | null;
+    currentWorkflowStep?: number;
+    totalWorkflowSteps?: number;
+    openaiRequestsTotal?: number;
+    openaiRequestsCompleted?: number;
+    openaiRequestsFailed?: number;
+  };
+}) {
+  const progress = openaiBatchProgress(batch);
+  if (!progress) return null;
+  const ratio =
+    progress.total > 0 ? Math.min(100, Math.round((progress.completed / progress.total) * 100)) : null;
+
+  return (
+    <div className="aone-phase-line" title={`${progress.title}${progress.countLabel ? ` · ${progress.countLabel}` : ""}`}>
+      <p className="aone-phase-title">{progress.title}</p>
+      {(progress.stepLabel || progress.countLabel) && (
+        <div className="aone-phase-meta">
+          {progress.stepLabel ? <span className="aone-phase-chip">{progress.stepLabel}</span> : null}
+          {progress.countLabel ? <span className="aone-phase-chip">{progress.countLabel}</span> : null}
+          {progress.failed > 0 ? (
+            <span className="aone-phase-chip aone-phase-chip-warn">{progress.failed} failed</span>
+          ) : null}
+        </div>
+      )}
+      {ratio != null ? (
+        <div
+          className="aone-phase-bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={ratio}
+          aria-label="OpenAI batch progress"
+        >
+          <span className="aone-phase-bar-fill" style={{ width: `${ratio}%` }} />
+        </div>
+      ) : (
+        <div className="aone-phase-bar aone-phase-bar-indeterminate" aria-hidden="true">
+          <span className="aone-phase-bar-pulse" />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -99,14 +220,27 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [retryConfirmOpen, setRetryConfirmOpen] = useState(false);
-  const [retryBusy, setRetryBusy] = useState(false);
   const [publishBusyId, setPublishBusyId] = useState<string | null>(null);
   const [publishAllBusy, setPublishAllBusy] = useState(false);
   const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
   const [conflictText, setConflictText] = useState("");
+  const [reprocessTarget, setReprocessTarget] = useState<ReprocessTarget | null>(null);
+  const [reprocessPreview, setReprocessPreview] = useState<ReprocessPreview | null>(null);
+  const [reprocessLoading, setReprocessLoading] = useState(false);
+  const [reprocessBusy, setReprocessBusy] = useState(false);
+  const [reprocessError, setReprocessError] = useState("");
 
   const pollInFlight = useRef(false);
+  const detailInFlight = useRef(false);
+  // Keep latest paging/selection in refs so the poll interval doesn't recreate forever.
+  const secondaryPageRef = useRef(secondaryPage);
+  const secondaryStatusFilterRef = useRef(secondaryStatusFilter);
+  const batchPageRef = useRef(batchPage);
+  const selectedBatchIdRef = useRef(selectedBatchId);
+  secondaryPageRef.current = secondaryPage;
+  secondaryStatusFilterRef.current = secondaryStatusFilter;
+  batchPageRef.current = batchPage;
+  selectedBatchIdRef.current = selectedBatchId;
 
   const hasActiveWork = useMemo(() => {
     if (!secondarySummary) return false;
@@ -116,28 +250,52 @@ export default function JobsPage() {
     return secondaryActive || batchesActive || publishActive;
   }, [secondarySummary, batches, batchProducts]);
 
-  const loadSecondary = useCallback(
-    async (page: number, statusFilter: string) => {
+  const refresh = useCallback(async () => {
+    if (pollInFlight.current) return;
+    pollInFlight.current = true;
+    const page = secondaryPageRef.current;
+    const statusFilter = secondaryStatusFilterRef.current;
+    const bPage = batchPageRef.current;
+    try {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(PAGE_SIZE),
       });
       if (statusFilter) params.set("status", statusFilter);
 
-      const [summaryRes, listRes] = await Promise.all([
+      // Fetch + parse first; only then commit React state. Avoids wiping one list
+      // when the other request fails mid-refresh.
+      const [summaryRes, listRes, batchesRes] = await Promise.all([
         authenticatedFetch(endpoints.secondaryQueueSummary),
         authenticatedFetch(`${endpoints.secondaryQueueList}?${params}`),
+        authenticatedFetch(`${endpoints.batchesList}?page=${bPage}&pageSize=${PAGE_SIZE}`),
       ]);
       const summary = await parseApiResponse<SecondaryQueueSummary>(summaryRes);
       const list = await parseApiResponse<{ items: SecondaryQueueItem[]; pagination: PaginationMeta }>(
         listRes,
       );
+      const batchesPayload = await parseApiResponse<{ items: Batch[]; pagination: PaginationMeta }>(
+        batchesRes,
+      );
+
       setSecondarySummary(summary);
       setSecondaryItems(list.items ?? []);
       setSecondaryPagination(list.pagination);
-    },
-    [authenticatedFetch],
-  );
+      setBatches(batchesPayload.items ?? []);
+      setBatchesPagination(batchesPayload.pagination);
+      setError("");
+    } catch (err) {
+      // Keep previous lists on failure so the UI doesn't flash empty.
+      setError(err instanceof Error ? err.message : "Failed to refresh monitoring data");
+    } finally {
+      pollInFlight.current = false;
+      setLoading(false);
+    }
+  }, [authenticatedFetch]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh, secondaryPage, secondaryStatusFilter, batchPage]);
 
   const loadBatches = useCallback(
     async (page: number) => {
@@ -150,24 +308,6 @@ export default function JobsPage() {
     },
     [authenticatedFetch],
   );
-
-  const refresh = useCallback(async () => {
-    if (pollInFlight.current) return;
-    pollInFlight.current = true;
-    try {
-      await Promise.all([loadSecondary(secondaryPage, secondaryStatusFilter), loadBatches(batchPage)]);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to refresh monitoring data");
-    } finally {
-      pollInFlight.current = false;
-      setLoading(false);
-    }
-  }, [loadSecondary, loadBatches, secondaryPage, secondaryStatusFilter, batchPage]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
 
   useEffect(() => {
     void (async () => {
@@ -222,37 +362,66 @@ export default function JobsPage() {
   }, [batchProducts]);
 
   const loadBatchDetail = useCallback(
-    async (batchId: string) => {
-      setDetailLoading(true);
+    async (batchId: string, opts?: { silent?: boolean }) => {
+      if (detailInFlight.current) return;
+      detailInFlight.current = true;
+      if (!opts?.silent) setDetailLoading(true);
       try {
         const [productsRes, imagesRes] = await Promise.all([
           authenticatedFetch(endpoints.batchProducts(batchId)),
           authenticatedFetch(endpoints.batchImages(batchId)),
         ]);
+        if (!productsRes.ok || !imagesRes.ok) {
+          // Batch gone / unauthorized — drop selection instead of hammering 404s.
+          if (productsRes.status === 404 || imagesRes.status === 404) {
+            setSelectedBatchId(null);
+            setBatchProducts([]);
+            setBatchImages([]);
+            return;
+          }
+        }
         const productsPayload = await parseApiResponse<{ items: BatchProduct[] }>(productsRes);
         const imagesPayload = await parseApiResponse<{ items: BatchImage[] }>(imagesRes);
+        // Ignore stale responses if the user already opened another batch.
+        if (selectedBatchIdRef.current !== batchId) return;
         setBatchProducts(productsPayload.items ?? []);
         setBatchImages(imagesPayload.items ?? []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load batch detail");
+        if (!opts?.silent) {
+          setError(err instanceof Error ? err.message : "Failed to load batch detail");
+        }
       } finally {
-        setDetailLoading(false);
+        detailInFlight.current = false;
+        if (!opts?.silent) setDetailLoading(false);
       }
     },
     [authenticatedFetch],
   );
 
+  // If the selected batch disappears from the list, close detail and stop product/image polls.
+  useEffect(() => {
+    if (!selectedBatchId) return;
+    if (!batches.some((b) => b.id === selectedBatchId)) {
+      setSelectedBatchId(null);
+      setBatchProducts([]);
+      setBatchImages([]);
+    }
+  }, [batches, selectedBatchId]);
+
   useEffect(() => {
     if (!hasActiveWork) return;
     const timer = window.setInterval(() => {
       void refresh();
-      if (selectedBatchId) void loadBatchDetail(selectedBatchId);
-    }, 3000);
+      const batchId = selectedBatchIdRef.current;
+      if (batchId) void loadBatchDetail(batchId, { silent: true });
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, [hasActiveWork, refresh, selectedBatchId, loadBatchDetail]);
+  }, [hasActiveWork, refresh, loadBatchDetail]);
 
   const openBatchDetail = (batchId: string) => {
     setSelectedBatchId(batchId);
+    setBatchProducts([]);
+    setBatchImages([]);
     void loadBatchDetail(batchId);
   };
 
@@ -301,36 +470,68 @@ export default function JobsPage() {
     }
   };
 
-  const retryFailedInBatch = async () => {
-    if (!selectedBatchId) return;
-    setRetryBusy(true);
+  const closeReprocessDialog = () => {
+    setReprocessTarget(null);
+    setReprocessPreview(null);
+    setReprocessError("");
+    setReprocessLoading(false);
+    setReprocessBusy(false);
+  };
+
+  const openReprocess = async (target: ReprocessTarget) => {
+    setReprocessTarget(target);
+    setReprocessPreview(null);
+    setReprocessError("");
+    setReprocessLoading(true);
     setError("");
     try {
-      const response = await authenticatedFetch(endpoints.batchRetryFailed(selectedBatchId), {
-        method: "POST",
-      });
-      const payload = await parseApiResponse<{ retriedCount: number }>(response);
-      setMessage(`Queued ${payload.retriedCount} failed product(s) for retry.`);
-      setRetryConfirmOpen(false);
-      await loadBatchDetail(selectedBatchId);
-      await loadBatches(batchPage);
+      const url =
+        target.scope === "batch"
+          ? endpoints.batchReprocessPreview(target.batchId)
+          : target.scope === "product"
+            ? endpoints.batchProductReprocessPreview(target.productId)
+            : endpoints.batchImageReprocessPreview(target.imageId);
+      const response = await authenticatedFetch(url);
+      const preview = await parseApiResponse<ReprocessPreview>(response);
+      setReprocessPreview(preview);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Retry failed");
+      setReprocessError(err instanceof Error ? err.message : "Failed to load prompt preview");
     } finally {
-      setRetryBusy(false);
+      setReprocessLoading(false);
     }
   };
 
-  const retryProduct = async (productId: string) => {
+  const confirmReprocess = async (steps: { name: string; promptTemplate: string }[]) => {
+    if (!reprocessTarget) return;
+    setReprocessBusy(true);
+    setReprocessError("");
     setError("");
     try {
-      await parseApiResponse(
-        await authenticatedFetch(endpoints.batchProductRetry(productId), { method: "POST" }),
-      );
-      setMessage("Product queued for retry.");
+      const url =
+        reprocessTarget.scope === "batch"
+          ? endpoints.batchReprocess(reprocessTarget.batchId)
+          : reprocessTarget.scope === "product"
+            ? endpoints.batchProductReprocess(reprocessTarget.productId)
+            : endpoints.batchImageReprocess(reprocessTarget.imageId);
+      const response = await authenticatedFetch(url, {
+        method: "POST",
+        body: JSON.stringify({ steps }),
+      });
+      const payload = await parseApiResponse<{ retriedCount?: number }>(response);
+      if (reprocessTarget.scope === "batch") {
+        setMessage(`Queued ${payload.retriedCount ?? 0} product(s) for reprocess.`);
+      } else if (reprocessTarget.scope === "product") {
+        setMessage("Product queued for reprocess.");
+      } else {
+        setMessage("Image queued for reprocess.");
+      }
+      closeReprocessDialog();
       if (selectedBatchId) await loadBatchDetail(selectedBatchId);
+      await loadBatches(batchPage);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Product retry failed");
+      setReprocessError(err instanceof Error ? err.message : "Reprocess failed");
+    } finally {
+      setReprocessBusy(false);
     }
   };
 
@@ -673,7 +874,10 @@ export default function JobsPage() {
                       <StatusBadge status={batch.triggerType} />
                     </td>
                     <td>
-                      <StatusBadge status={batch.status} />
+                      <div className="aone-batch-status-cell">
+                        <StatusBadge status={batch.status} />
+                        <OpenAIPhaseLine batch={batch} />
+                      </div>
                     </td>
                     <td>{batch.productCount}</td>
                     <td>{batch.imageCount}</td>
@@ -724,6 +928,9 @@ export default function JobsPage() {
                     <StatusBadge status={selectedBatch.triggerType} />
                     <StatusBadge status={selectedBatch.status} />
                   </s-stack>
+                  {openaiBatchProgress(selectedBatch) ? (
+                    <OpenAIPhaseLine batch={selectedBatch} />
+                  ) : null}
                   {selectedBatch.errorSummary ? (
                     <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
                   ) : null}
@@ -738,9 +945,13 @@ export default function JobsPage() {
                       {publishAllBusy ? "Queuing…" : "Publish All Ready Products"}
                     </s-button>
                   ) : null}
-                  {selectedBatch.failedProductCount > 0 ? (
-                    <s-button tone="critical" onClick={() => setRetryConfirmOpen(true)}>
-                      Retry failed
+                  {batchProducts.some(canReprocessProduct) ? (
+                    <s-button
+                      onClick={() =>
+                        void openReprocess({ scope: "batch", batchId: selectedBatchId })
+                      }
+                    >
+                      Reprocess batch
                     </s-button>
                   ) : null}
                   <s-button onClick={() => setSelectedBatchId(null)}>Close</s-button>
@@ -822,9 +1033,13 @@ export default function JobsPage() {
                               </td>
                               <td>
                                 <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
-                                  {product.status === "FAILED" ? (
-                                    <s-button onClick={() => void retryProduct(product.id)}>
-                                      Retry Processing
+                                  {canReprocessProduct(product) ? (
+                                    <s-button
+                                      onClick={() =>
+                                        void openReprocess({ scope: "product", productId: product.id })
+                                      }
+                                    >
+                                      Reprocess
                                     </s-button>
                                   ) : null}
                                   {pub === "READY_TO_PUBLISH" && !autoPublishEnabled ? (
@@ -861,7 +1076,11 @@ export default function JobsPage() {
                                       View Versions
                                     </s-button>
                                   ) : null}
-                                  {!pub && product.status !== "FAILED" ? "—" : null}
+                                  {!canReprocessProduct(product) &&
+                                  !pub &&
+                                  product.status === "PROCESSING"
+                                    ? "—"
+                                    : null}
                                 </div>
                               </td>
                             </tr>
@@ -905,7 +1124,18 @@ export default function JobsPage() {
                               {image.errorMessage ?? "—"}
                             </td>
                             <td>
-                              <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
+                              <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+                                {canReprocessImage(image, batchProducts) ? (
+                                  <s-button
+                                    onClick={() =>
+                                      void openReprocess({ scope: "image", imageId: image.id })
+                                    }
+                                  >
+                                    Reprocess
+                                  </s-button>
+                                ) : null}
+                                <s-button onClick={() => setPreviewImage(image)}>View details</s-button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -919,15 +1149,21 @@ export default function JobsPage() {
         ) : null}
       </div>
 
-      <ConfirmDialog
-        open={retryConfirmOpen}
-        title="Retry failed products"
-        message="Queue all failed products in this batch for another processing attempt?"
-        confirmLabel="Retry failed"
-        tone="critical"
-        busy={retryBusy}
-        onConfirm={() => void retryFailedInBatch()}
-        onCancel={() => setRetryConfirmOpen(false)}
+      <ReprocessPromptDialog
+        open={Boolean(reprocessTarget)}
+        title={
+          reprocessTarget?.scope === "batch"
+            ? "Reprocess batch"
+            : reprocessTarget?.scope === "product"
+              ? "Reprocess product"
+              : "Reprocess image"
+        }
+        preview={reprocessPreview}
+        loading={reprocessLoading}
+        busy={reprocessBusy}
+        error={reprocessError}
+        onConfirm={(steps) => void confirmReprocess(steps)}
+        onCancel={closeReprocessDialog}
       />
 
       <ImageCompareDialog image={previewImage} onClose={() => setPreviewImage(null)} />

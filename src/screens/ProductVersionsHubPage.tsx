@@ -20,6 +20,14 @@ type VersionedProduct = {
   imageCount: number;
 };
 
+type StorageSummary = {
+  estimateOnly?: boolean;
+  note?: string;
+  totalVersions?: number;
+  totalRecordedFileSizeBytes?: number;
+  warnings?: Array<{ code: string; message: string; value?: number; valueMb?: number }>;
+};
+
 export default function ProductVersionsHubPage() {
   const authenticatedFetch = useAuthenticatedFetch();
   const [search, setSearch] = useState("");
@@ -27,17 +35,25 @@ export default function ProductVersionsHubPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [items, setItems] = useState<VersionedProduct[]>([]);
+  const [storage, setStorage] = useState<StorageSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (query.trim()) params.set("search", query.trim());
-      const res = await authenticatedFetch(
-        `${endpoints.productsWithMediaVersions}?${params.toString()}`,
-      );
+      const [res, storageRes] = await Promise.all([
+        authenticatedFetch(`${endpoints.productsWithMediaVersions}?${params.toString()}`),
+        authenticatedFetch(endpoints.imageStorageSummary),
+      ]);
       const data = await parseApiResponse<{ items: VersionedProduct[] }>(res);
       setItems(data.items ?? []);
+      try {
+        const summary = await parseApiResponse<StorageSummary>(storageRes);
+        setStorage(summary);
+      } catch {
+        setStorage(null);
+      }
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load published products");
@@ -59,6 +75,21 @@ export default function ProductVersionsHubPage() {
         </s-paragraph>
 
         {error ? <ErrorBanner message={error} onRetry={() => void load()} /> : null}
+
+        {storage?.warnings && storage.warnings.length > 0 ? (
+          <s-banner tone="warning">
+            <s-stack direction="block" gap="small">
+              <s-text type="strong">Storage usage warning (estimate)</s-text>
+              <s-paragraph>
+                {storage.note ||
+                  "Totals are estimates from stored file-size metadata, not Shopify account usage. No versions are deleted automatically."}
+              </s-paragraph>
+              {storage.warnings.map((w) => (
+                <s-paragraph key={w.code}>{w.message}</s-paragraph>
+              ))}
+            </s-stack>
+          </s-banner>
+        ) : null}
 
         <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
           <input

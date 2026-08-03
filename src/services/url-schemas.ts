@@ -46,6 +46,17 @@ export const endpoints = {
   batchImageOutput: (imageId: string) => `${API_BASE_URL}/api/batches/images/${imageId}/output`,
   batchRetryFailed: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/retry-failed`,
   batchProductRetry: (productId: string) => `${API_BASE_URL}/api/batches/products/${productId}/retry`,
+  batchReprocessPreview: (batchId: string) =>
+    `${API_BASE_URL}/api/batches/${batchId}/reprocess/preview`,
+  batchReprocess: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}/reprocess`,
+  batchProductReprocessPreview: (productId: string) =>
+    `${API_BASE_URL}/api/batches/products/${productId}/reprocess/preview`,
+  batchProductReprocess: (productId: string) =>
+    `${API_BASE_URL}/api/batches/products/${productId}/reprocess`,
+  batchImageReprocessPreview: (imageId: string) =>
+    `${API_BASE_URL}/api/batches/images/${imageId}/reprocess/preview`,
+  batchImageReprocess: (imageId: string) =>
+    `${API_BASE_URL}/api/batches/images/${imageId}/reprocess`,
   batchProductPublish: (productId: string) => `${API_BASE_URL}/api/batches/products/${productId}/publish`,
   batchProductRetryPublish: (productId: string) =>
     `${API_BASE_URL}/api/batches/products/${productId}/retry-publish`,
@@ -72,6 +83,17 @@ export const endpoints = {
     `${API_BASE_URL}/api/rollback-operations/${operationId}`,
   rollbackOperationRetry: (operationId: string) =>
     `${API_BASE_URL}/api/rollback-operations/${operationId}/retry`,
+
+  // Normalized per-image CDN versions (under product-level snapshots)
+  productImageVersions: (productId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/image-versions`,
+  productImageVersion: (productId: string, versionId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/image-versions/${versionId}`,
+  productImageVersionEvents: (productId: string, versionId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/image-versions/${versionId}/events`,
+  imageStorageSummary: `${API_BASE_URL}/api/shops/me/image-storage-summary`,
+  batchImageRetryUpload: (imageId: string) =>
+    `${API_BASE_URL}/api/batches/images/${imageId}/retry-upload`,
 
   // Prompt Management
   promptVariables: `${API_BASE_URL}/api/prompts/variables`,
