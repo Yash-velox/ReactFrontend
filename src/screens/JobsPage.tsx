@@ -73,6 +73,16 @@ export default function JobsPage() {
   const [retryBusy, setRetryBusy] = useState(false);
 
   const pollInFlight = useRef(false);
+  const detailInFlight = useRef(false);
+  // Keep latest paging/selection in refs so the poll interval doesn't recreate forever.
+  const secondaryPageRef = useRef(secondaryPage);
+  const secondaryStatusFilterRef = useRef(secondaryStatusFilter);
+  const batchPageRef = useRef(batchPage);
+  const selectedBatchIdRef = useRef(selectedBatchId);
+  secondaryPageRef.current = secondaryPage;
+  secondaryStatusFilterRef.current = secondaryStatusFilter;
+  batchPageRef.current = batchPage;
+  selectedBatchIdRef.current = selectedBatchId;
 
   const hasActiveWork = useMemo(() => {
     if (!secondarySummary) return false;
@@ -80,29 +90,6 @@ export default function JobsPage() {
     const batchesActive = batches.some((b) => ACTIVE_BATCH_STATUSES.has(b.status));
     return secondaryActive || batchesActive;
   }, [secondarySummary, batches]);
-
-  const loadSecondary = useCallback(
-    async (page: number, statusFilter: string) => {
-      const params = new URLSearchParams({
-        page: String(page),
-        pageSize: String(PAGE_SIZE),
-      });
-      if (statusFilter) params.set("status", statusFilter);
-
-      const [summaryRes, listRes] = await Promise.all([
-        authenticatedFetch(endpoints.secondaryQueueSummary),
-        authenticatedFetch(`${endpoints.secondaryQueueList}?${params}`),
-      ]);
-      const summary = await parseApiResponse<SecondaryQueueSummary>(summaryRes);
-      const list = await parseApiResponse<{ items: SecondaryQueueItem[]; pagination: PaginationMeta }>(
-        listRes,
-      );
-      setSecondarySummary(summary);
-      setSecondaryItems(list.items ?? []);
-      setSecondaryPagination(list.pagination);
-    },
-    [authenticatedFetch],
-  );
 
   const loadBatches = useCallback(
     async (page: number) => {
@@ -119,53 +106,110 @@ export default function JobsPage() {
   const refresh = useCallback(async () => {
     if (pollInFlight.current) return;
     pollInFlight.current = true;
+    const page = secondaryPageRef.current;
+    const statusFilter = secondaryStatusFilterRef.current;
+    const bPage = batchPageRef.current;
     try {
-      await Promise.all([loadSecondary(secondaryPage, secondaryStatusFilter), loadBatches(batchPage)]);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      });
+      if (statusFilter) params.set("status", statusFilter);
+
+      // Fetch + parse first; only then commit React state. Avoids wiping one list
+      // when the other request fails mid-refresh.
+      const [summaryRes, listRes, batchesRes] = await Promise.all([
+        authenticatedFetch(endpoints.secondaryQueueSummary),
+        authenticatedFetch(`${endpoints.secondaryQueueList}?${params}`),
+        authenticatedFetch(`${endpoints.batchesList}?page=${bPage}&pageSize=${PAGE_SIZE}`),
+      ]);
+      const summary = await parseApiResponse<SecondaryQueueSummary>(summaryRes);
+      const list = await parseApiResponse<{ items: SecondaryQueueItem[]; pagination: PaginationMeta }>(
+        listRes,
+      );
+      const batchesPayload = await parseApiResponse<{ items: Batch[]; pagination: PaginationMeta }>(
+        batchesRes,
+      );
+
+      setSecondarySummary(summary);
+      setSecondaryItems(list.items ?? []);
+      setSecondaryPagination(list.pagination);
+      setBatches(batchesPayload.items ?? []);
+      setBatchesPagination(batchesPayload.pagination);
       setError("");
     } catch (err) {
+      // Keep previous lists on failure so the UI doesn't flash empty.
       setError(err instanceof Error ? err.message : "Failed to refresh monitoring data");
     } finally {
       pollInFlight.current = false;
       setLoading(false);
     }
-  }, [loadSecondary, loadBatches, secondaryPage, secondaryStatusFilter, batchPage]);
+  }, [authenticatedFetch]);
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, secondaryPage, secondaryStatusFilter, batchPage]);
 
   const loadBatchDetail = useCallback(
-    async (batchId: string) => {
-      setDetailLoading(true);
+    async (batchId: string, opts?: { silent?: boolean }) => {
+      if (detailInFlight.current) return;
+      detailInFlight.current = true;
+      if (!opts?.silent) setDetailLoading(true);
       try {
         const [productsRes, imagesRes] = await Promise.all([
           authenticatedFetch(endpoints.batchProducts(batchId)),
           authenticatedFetch(endpoints.batchImages(batchId)),
         ]);
+        if (!productsRes.ok || !imagesRes.ok) {
+          if (productsRes.status === 404 || imagesRes.status === 404) {
+            setSelectedBatchId(null);
+            setBatchProducts([]);
+            setBatchImages([]);
+            return;
+          }
+        }
         const productsPayload = await parseApiResponse<{ items: BatchProduct[] }>(productsRes);
         const imagesPayload = await parseApiResponse<{ items: BatchImage[] }>(imagesRes);
+        // Ignore stale responses if the user already opened another batch.
+        if (selectedBatchIdRef.current !== batchId) return;
         setBatchProducts(productsPayload.items ?? []);
         setBatchImages(imagesPayload.items ?? []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load batch detail");
+        if (!opts?.silent) {
+          setError(err instanceof Error ? err.message : "Failed to load batch detail");
+        }
       } finally {
-        setDetailLoading(false);
+        detailInFlight.current = false;
+        if (!opts?.silent) setDetailLoading(false);
       }
     },
     [authenticatedFetch],
   );
 
+  // If the selected batch disappears from the list, close detail and stop product/image polls.
+  useEffect(() => {
+    if (!selectedBatchId) return;
+    if (!batches.some((b) => b.id === selectedBatchId)) {
+      setSelectedBatchId(null);
+      setBatchProducts([]);
+      setBatchImages([]);
+    }
+  }, [batches, selectedBatchId]);
+
   useEffect(() => {
     if (!hasActiveWork) return;
     const timer = window.setInterval(() => {
       void refresh();
-      if (selectedBatchId) void loadBatchDetail(selectedBatchId);
-    }, 3000);
+      const batchId = selectedBatchIdRef.current;
+      if (batchId) void loadBatchDetail(batchId, { silent: true });
+    }, 5000);
     return () => window.clearInterval(timer);
-  }, [hasActiveWork, refresh, selectedBatchId, loadBatchDetail]);
+  }, [hasActiveWork, refresh, loadBatchDetail]);
 
   const openBatchDetail = (batchId: string) => {
     setSelectedBatchId(batchId);
+    setBatchProducts([]);
+    setBatchImages([]);
     void loadBatchDetail(batchId);
   };
 

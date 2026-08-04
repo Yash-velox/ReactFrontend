@@ -15,7 +15,6 @@ export default function SettingsPage() {
   const [validationError, setValidationError] = useState("");
 
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
-  const [maxProductsPerBatch, setMaxProductsPerBatch] = useState("25");
   const [batchIntervalMinutes, setBatchIntervalMinutes] = useState("15");
 
   const loadSettings = useCallback(async () => {
@@ -25,7 +24,6 @@ export default function SettingsPage() {
       const response = await authenticatedFetch(endpoints.settings);
       const data = await parseApiResponse<Settings>(response);
       setAutoSyncEnabled(data.autoSyncEnabled);
-      setMaxProductsPerBatch(String(data.maxProductsPerBatch));
       setBatchIntervalMinutes(String(data.batchIntervalMinutes));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
@@ -39,13 +37,8 @@ export default function SettingsPage() {
   }, [loadSettings]);
 
   const validate = (): boolean => {
-    const maxProducts = Number(maxProductsPerBatch);
     const interval = Number(batchIntervalMinutes);
 
-    if (!Number.isFinite(maxProducts) || maxProducts < 1) {
-      setValidationError("Max products per batch must be at least 1.");
-      return false;
-    }
     if (!Number.isFinite(interval) || interval < 1) {
       setValidationError("Batch interval must be at least 1 minute.");
       return false;
@@ -65,13 +58,11 @@ export default function SettingsPage() {
         method: "PUT",
         body: JSON.stringify({
           autoSyncEnabled,
-          maxProductsPerBatch: Number(maxProductsPerBatch),
           batchIntervalMinutes: Number(batchIntervalMinutes),
         }),
       });
       const data = await parseApiResponse<Settings>(response);
       setAutoSyncEnabled(data.autoSyncEnabled);
-      setMaxProductsPerBatch(String(data.maxProductsPerBatch));
       setBatchIntervalMinutes(String(data.batchIntervalMinutes));
       setSuccess("Settings saved successfully.");
     } catch (err) {
@@ -85,7 +76,7 @@ export default function SettingsPage() {
     <s-page heading="Settings">
       <s-section heading="Processing preferences">
         <s-paragraph>
-          Configure automatic batch creation from the Secondary Queue and batch sizing for your store.
+          Configure automatic batch creation from the Secondary Queue for your store.
         </s-paragraph>
       </s-section>
 
@@ -125,8 +116,8 @@ export default function SettingsPage() {
               <span>
                 <s-text type="strong">Enable Auto Sync</s-text>
                 <s-paragraph>
-                  When enabled, pending Secondary Queue products are converted into processing batches on
-                  the configured interval.
+                  When enabled, pending Secondary Queue products are converted into processing batches
+                  after the configured wait interval.
                 </s-paragraph>
               </span>
             </label>
@@ -141,21 +132,6 @@ export default function SettingsPage() {
             ) : null}
 
             <div className="aone-field-group">
-              <label className="aone-field-label" htmlFor="max-products">
-                Max products per batch
-              </label>
-              <input
-                id="max-products"
-                className="aone-input"
-                type="number"
-                min={1}
-                value={maxProductsPerBatch}
-                onChange={(e) => setMaxProductsPerBatch(e.target.value)}
-              />
-              <p className="aone-field-hint">Maximum products included in each automatic batch.</p>
-            </div>
-
-            <div className="aone-field-group">
               <label className="aone-field-label" htmlFor="batch-interval">
                 Batch interval (minutes)
               </label>
@@ -167,7 +143,10 @@ export default function SettingsPage() {
                 value={batchIntervalMinutes}
                 onChange={(e) => setBatchIntervalMinutes(e.target.value)}
               />
-              <p className="aone-field-hint">How often the worker checks for new Secondary Queue work.</p>
+              <p className="aone-field-hint">
+                How long to wait after the first pending product enters the Secondary Queue before
+                creating an automatic batch (includes all pending products at that time).
+              </p>
             </div>
 
             <div className="aone-toolbar">

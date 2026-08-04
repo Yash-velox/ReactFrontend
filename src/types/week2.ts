@@ -7,7 +7,6 @@ export type PaginationMeta = {
 
 export type Settings = {
   autoSyncEnabled: boolean;
-  maxProductsPerBatch: number;
   batchIntervalMinutes: number;
   createdAt: string;
   updatedAt: string;
