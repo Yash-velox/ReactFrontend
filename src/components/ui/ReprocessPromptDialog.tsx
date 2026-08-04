@@ -24,7 +24,6 @@ type EditableStep = {
   step: number;
   name: string;
   promptTemplate: string;
-  renderedPrompt?: string;
 };
 
 type Props = {
@@ -61,7 +60,6 @@ export default function ReprocessPromptDialog({
         step: s.step,
         name: s.name,
         promptTemplate: s.promptTemplate,
-        renderedPrompt: s.renderedPrompt,
       })),
     );
   }, [preview]);
@@ -124,11 +122,6 @@ export default function ReprocessPromptDialog({
                     }}
                   />
                 </label>
-                {step.renderedPrompt ? (
-                  <s-text tone="neutral">
-                    Sample with current variables: {step.renderedPrompt}
-                  </s-text>
-                ) : null}
               </s-stack>
             ))}
 

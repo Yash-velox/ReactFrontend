@@ -59,7 +59,7 @@ export default function ProductPickerDialog({
   const [items, setItems] = useState<CatalogProduct[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [batchLimit, setBatchLimit] = useState(50);
+  const [batchLimit, setBatchLimit] = useState(2);
   const [productTypes, setProductTypes] = useState<string[]>([]);
 
   const [search, setSearch] = useState("");

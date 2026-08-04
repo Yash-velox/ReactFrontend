@@ -23,6 +23,7 @@ import type {
 import { parseApiResponse } from "../utils/api";
 import { formatGid, formatWhen, truncateGid } from "../utils/format";
 import { navigateApp } from "../utils/routes";
+import { showAppToast } from "../utils/toast";
 
 type PickerProduct = {
   id: string;
@@ -46,7 +47,7 @@ const REPROCESSABLE_PRODUCT_STATUSES = new Set([
 ]);
 const REPROCESSABLE_IMAGE_STATUSES = new Set(["QUEUED", "RETRYING", "COMPLETED", "FAILED"]);
 const PAGE_SIZE = 20;
-const DEFAULT_MANUAL_BATCH_LIMIT = 50;
+const DEFAULT_MANUAL_BATCH_LIMIT = 2;
 
 function shopifyAdminProductUrl(gid: string): string | null {
   const match = /Product\/(\d+)/.exec(gid);
@@ -237,6 +238,7 @@ export default function JobsPage() {
   const secondaryStatusFilterRef = useRef(secondaryStatusFilter);
   const batchPageRef = useRef(batchPage);
   const selectedBatchIdRef = useRef(selectedBatchId);
+  const lastToastedSecondaryFailedRef = useRef<number | null>(null);
   secondaryPageRef.current = secondaryPage;
   secondaryStatusFilterRef.current = secondaryStatusFilter;
   batchPageRef.current = batchPage;
@@ -417,6 +419,24 @@ export default function JobsPage() {
     }, 5000);
     return () => window.clearInterval(timer);
   }, [hasActiveWork, refresh, loadBatchDetail]);
+
+  // Surface Secondary Queue prompt/config failures as a toast (table still shows details).
+  useEffect(() => {
+    const failed = secondarySummary?.failed ?? 0;
+    if (failed <= 0) {
+      lastToastedSecondaryFailedRef.current = 0;
+      return;
+    }
+    const previous = lastToastedSecondaryFailedRef.current;
+    if (previous === failed) return;
+    if (previous === null || failed > previous) {
+      showAppToast(
+        `${failed} product(s) could not be processed. Check Skip / failure — usually missing Prompt Configuration.`,
+        { isError: true, duration: 8000 },
+      );
+    }
+    lastToastedSecondaryFailedRef.current = failed;
+  }, [secondarySummary?.failed]);
 
   const openBatchDetail = (batchId: string) => {
     setSelectedBatchId(batchId);
@@ -685,6 +705,11 @@ export default function JobsPage() {
               </s-badge>
             ) : null}
           </div>
+
+          <s-paragraph>
+            Products whose product type has no enabled Prompt Configuration are blocked at create time
+            with an error — configure prompts first under Prompt Management.
+          </s-paragraph>
 
           {pickedProducts.length > 0 ? (
             <div className="aone-chip-list">
