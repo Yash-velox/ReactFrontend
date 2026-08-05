@@ -1,14 +1,23 @@
 /**
  * Central API base URL + endpoint paths (Retention Hub pattern).
- * In local/ngrok dev, VITE_API_BASE_URL is the UI host; Vite proxies
- * /api, /health, /tenant to FastAPI on :8080 (avoids flaky trycloudflare DNS).
+ *
+ * Prefer an empty VITE_API_BASE_URL so the browser calls same-origin
+ * `/api`, `/health`, `/tenant`. Vite (local + via ngrok) proxies those
+ * to FastAPI on :8080.
+ *
+ * Do NOT point VITE_API_BASE_URL at the ngrok host for API calls: free
+ * ngrok returns ERR_NGROK_6024 interstitial HTML to browser fetches
+ * (shows up as "Backend Unreachable" / Failed to fetch).
  */
 
 const trimSlash = (value: string) => value.replace(/\/+$/, "");
 
-export const API_BASE_URL = trimSlash(
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8080",
-);
+export const API_BASE_URL = trimSlash(import.meta.env.VITE_API_BASE_URL || "");
+
+/** Headers that keep free-ngrok tunnels from blocking XHR/fetch. */
+export const tunnelBypassHeaders = {
+  "ngrok-skip-browser-warning": "true",
+} as const;
 
 export const endpoints = {
   health: `${API_BASE_URL}/health`,

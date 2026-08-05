@@ -1,5 +1,6 @@
 import { NavMenu } from "@shopify/app-bridge-react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AppErrorBoundary } from "./components/ui/AppErrorBoundary";
 import { AppBridgeProvider } from "./providers/AppBridgeProvider";
 import HomePage from "./screens/HomePage";
 import JobsPage from "./screens/JobsPage";
@@ -11,8 +12,9 @@ import SettingsPage from "./screens/SettingsPage";
 import "./styles/shopify.css";
 
 /**
- * App Bridge NavMenu items show under the app in Shopify Admin sidebar
- * (Apps → Image-Enhancement), same pattern as other embedded apps.
+ * App Bridge NavMenu is a custom-element wrapper (`ui-nav-menu`).
+ * It does not require a React Provider — CDN App Bridge registers the element.
+ * Render is safe outside Admin; links simply won't appear in the Shopify chrome.
  */
 function AppNav() {
   return (
@@ -55,10 +57,12 @@ function AppRoutes() {
 function App() {
   return (
     <AppBridgeProvider>
-      <BrowserRouter>
-        <AppNav />
-        <AppRoutes />
-      </BrowserRouter>
+      <AppErrorBoundary>
+        <BrowserRouter>
+          <AppNav />
+          <AppRoutes />
+        </BrowserRouter>
+      </AppErrorBoundary>
     </AppBridgeProvider>
   );
 }

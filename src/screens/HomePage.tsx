@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import { getStatusConfig } from "../components/ui/StatusBadge";
-import { endpoints } from "../services/url-schemas";
+import { endpoints, tunnelBypassHeaders } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, SecondaryQueueSummary, SyncStatus } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
@@ -28,7 +28,7 @@ export default function HomePage() {
 
     const ping = async () => {
       try {
-        const res = await fetch(endpoints.health);
+        const res = await fetch(endpoints.health, { headers: tunnelBypassHeaders });
         if (!cancelled) setHealth(res.ok ? "ok" : "down");
       } catch {
         if (!cancelled) setHealth("down");
