@@ -110,7 +110,7 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
 
         <s-paragraph tone="neutral">
           {showingAfter
-            ? "AI processed output (not yet published to Shopify)."
+            ? "AI processed output preview."
             : "Original image currently on Shopify."}
         </s-paragraph>
 
