@@ -7,6 +7,7 @@ export type PaginationMeta = {
 
 export type Settings = {
   autoSyncEnabled: boolean;
+  autoPublishProcessedImages: boolean;
   batchIntervalMinutes: number;
   createdAt: string;
   updatedAt: string;
@@ -64,6 +65,12 @@ export type Batch = {
   id: string;
   triggerType: string;
   status: string;
+  processingPhase?: string | null;
+  currentWorkflowStep?: number;
+  totalWorkflowSteps?: number;
+  openaiRequestsTotal?: number;
+  openaiRequestsCompleted?: number;
+  openaiRequestsFailed?: number;
   productCount: number;
   imageCount: number;
   pendingProductCount: number;
@@ -85,6 +92,7 @@ export type BatchProduct = {
   shopifyProductGid: string;
   productId?: string | null;
   status: string;
+  publishStatus?: string | null;
   imageCount: number;
   retryCount: number;
   errorCode?: string | null;
@@ -118,6 +126,9 @@ export type BatchImage = {
   outputUrl?: string | null;
   outputMimeType?: string | null;
   outputChecksum?: string | null;
+  generatedShopifyFileGid?: string | null;
+  generatedShopifyCdnUrl?: string | null;
+  generatedImageVersionId?: string | null;
   errorCode?: string | null;
   errorMessage?: string | null;
   startedAt?: string | null;

@@ -1085,3 +1085,201 @@ textarea:focus-visible {
 .aone-overflow-item.is-critical {
   color: #8e1f0b;
 }
+
+/* ── OpenAI / batch phase progress (Jobs table) ── */
+.aone-batch-status-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--aone-space-2);
+  min-width: 200px;
+  max-width: 280px;
+}
+
+.aone-phase-line {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-sm);
+  background: var(--aone-bg-subdued);
+  box-sizing: border-box;
+}
+
+.aone-phase-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--aone-text);
+}
+
+.aone-phase-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.aone-phase-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--aone-border);
+  background: var(--aone-bg);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.4;
+  color: var(--aone-text-subdued);
+  white-space: nowrap;
+}
+
+.aone-phase-chip-warn {
+  border-color: color-mix(in srgb, #b98900 35%, var(--aone-border));
+  background: color-mix(in srgb, #b98900 10%, var(--aone-bg));
+  color: #8a6116;
+}
+
+.aone-phase-bar {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--aone-border) 80%, transparent);
+  overflow: hidden;
+}
+
+.aone-phase-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--aone-focus);
+  transition: width 0.35s ease;
+}
+
+.aone-phase-bar-indeterminate .aone-phase-bar-pulse {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--aone-focus) 70%, var(--aone-border));
+  animation: aone-phase-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes aone-phase-pulse {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aone-phase-bar-fill {
+    transition: none;
+  }
+
+  .aone-phase-bar-indeterminate .aone-phase-bar-pulse {
+    animation: none;
+    width: 100%;
+    opacity: 0.45;
+  }
+}
+
+/* ── Product versions page ── */
+.aone-versions-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-5);
+  width: 100%;
+  grid-column: 1 / -1;
+}
+
+.aone-versions-page > s-section {
+  width: 100%;
+  min-width: 0;
+}
+
+.aone-media-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-2);
+}
+
+.aone-media-strip-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--aone-text);
+}
+
+.aone-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--aone-space-3);
+  width: 100%;
+}
+
+.aone-media-grid-lg {
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+}
+
+.aone-media-tile {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.aone-media-tile-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--aone-radius-sm);
+  border: 1px solid var(--aone-border);
+  background: var(--aone-bg-subdued);
+}
+
+.aone-media-tile.is-primary .aone-media-tile-img {
+  border-color: var(--aone-focus);
+  box-shadow: 0 0 0 1px var(--aone-focus);
+}
+
+.aone-media-tile-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--aone-radius-sm);
+  border: 1px dashed var(--aone-border);
+  background: var(--aone-bg-subdued);
+  font-size: 11px;
+  color: var(--aone-text-subdued);
+}
+
+.aone-media-tile-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--aone-text-subdued);
+}
+
+.aone-media-tile-type {
+  font-weight: 600;
+  color: var(--aone-text);
+  text-transform: capitalize;
+}
+
+.aone-versions-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--aone-space-4);
+}

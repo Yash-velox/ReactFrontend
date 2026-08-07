@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [validationError, setValidationError] = useState("");
 
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+  const [autoPublishProcessedImages, setAutoPublishProcessedImages] = useState(false);
   const [batchIntervalMinutes, setBatchIntervalMinutes] = useState("15");
 
   const loadSettings = useCallback(async () => {
@@ -24,6 +25,7 @@ export default function SettingsPage() {
       const response = await authenticatedFetch(endpoints.settings);
       const data = await parseApiResponse<Settings>(response);
       setAutoSyncEnabled(data.autoSyncEnabled);
+      setAutoPublishProcessedImages(Boolean(data.autoPublishProcessedImages));
       setBatchIntervalMinutes(String(data.batchIntervalMinutes));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
@@ -58,11 +60,13 @@ export default function SettingsPage() {
         method: "PUT",
         body: JSON.stringify({
           autoSyncEnabled,
+          autoPublishProcessedImages,
           batchIntervalMinutes: Number(batchIntervalMinutes),
         }),
       });
       const data = await parseApiResponse<Settings>(response);
       setAutoSyncEnabled(data.autoSyncEnabled);
+      setAutoPublishProcessedImages(Boolean(data.autoPublishProcessedImages));
       setBatchIntervalMinutes(String(data.batchIntervalMinutes));
       setSuccess("Settings saved successfully.");
     } catch (err) {
@@ -155,6 +159,43 @@ export default function SettingsPage() {
               </s-button>
               <s-button onClick={() => void loadSettings()} disabled={saving || loading}>
                 Reset
+              </s-button>
+            </div>
+          </s-stack>
+        )}
+      </s-section>
+
+      <s-section heading="Shopify Publishing">
+        {loading ? (
+          <PageSkeleton metricCount={0} tableRows={2} />
+        ) : (
+          <s-stack direction="block" gap="base">
+            <s-paragraph>
+              When enabled, successfully processed products will be published after every product in the
+              batch has finished processing. When disabled, you can review the processed images and
+              publish them manually from Jobs.
+            </s-paragraph>
+            <label className="aone-checkbox-row">
+              <input
+                type="checkbox"
+                checked={autoPublishProcessedImages}
+                onChange={(e) => setAutoPublishProcessedImages(e.target.checked)}
+              />
+              <span>
+                <s-text type="strong">Automatically publish processed images to Shopify</s-text>
+              </span>
+            </label>
+            {autoPublishProcessedImages ? (
+              <s-banner tone="warning" heading="Automatic replacement">
+                <s-paragraph>
+                  Processed images will automatically replace the product&apos;s current image
+                  associations after validation and conflict checks.
+                </s-paragraph>
+              </s-banner>
+            ) : null}
+            <div className="aone-toolbar">
+              <s-button variant="primary" onClick={() => void saveSettings()} disabled={saving || loading}>
+                {saving ? "Saving…" : "Save settings"}
               </s-button>
             </div>
           </s-stack>
