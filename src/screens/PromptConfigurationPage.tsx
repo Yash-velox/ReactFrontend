@@ -9,7 +9,6 @@ import { useModalOverlay } from "../components/ui/useModalOverlay";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { PromptConfigurationDetail, PromptStep } from "../types/prompts";
-import { PROMPT_VARIABLES } from "../types/prompts";
 import { parseApiResponse } from "../utils/api";
 import { appPath } from "../utils/routes";
 
@@ -49,7 +48,6 @@ function resolveProductTypeId(prop?: string): string {
 export default function PromptConfigurationPage({ productTypeId: productTypeIdProp }: Props = {}) {
   const productTypeId = resolveProductTypeId(productTypeIdProp);
   const authenticatedFetch = useAuthenticatedFetch();
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -183,30 +181,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     });
     setFormError("");
     setStepModalOpen(true);
-  };
-
-  const insertVariable = (token: string) => {
-    const el = textareaRef.current;
-    if (!el) {
-      setForm((prev) => ({
-        ...prev,
-        promptText: prev.promptText ? `${prev.promptText} ${token}` : token,
-      }));
-      return;
-    }
-    const start = el.selectionStart ?? form.promptText.length;
-    const end = el.selectionEnd ?? start;
-    const before = form.promptText.slice(0, start);
-    const after = form.promptText.slice(end);
-    const needsSpaceBefore = before.length > 0 && !/\s$/.test(before);
-    const insert = `${needsSpaceBefore ? " " : ""}${token}`;
-    const next = `${before}${insert}${after}`;
-    setForm((prev) => ({ ...prev, promptText: next }));
-    requestAnimationFrame(() => {
-      const pos = before.length + insert.length;
-      el.focus();
-      el.setSelectionRange(pos, pos);
-    });
   };
 
   const validateForm = (): boolean => {
@@ -360,17 +334,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
 
   return (
     <s-page heading="Prompt Configuration">
-      <s-section>
-        <div className="aone-toolbar aone-toolbar-spread">
-          <s-button href={appPath("/prompts")}>← Back to Prompts</s-button>
-          {message ? (
-            <s-badge tone="success">{message}</s-badge>
-          ) : (
-            <span className="aone-field-hint">{saving ? "Saving…" : ""}</span>
-          )}
-        </div>
-      </s-section>
-
       {error ? (
         <s-section>
           <ErrorBanner message={error} onRetry={() => void load()} />
@@ -378,37 +341,53 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
       ) : null}
 
       <s-section heading={detail.name}>
-        <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "1rem", alignItems: "center" }}>
-          <div>
-            <div className="aone-field-hint">Source</div>
-            <StatusBadge status={detail.source} />
+        <div className="aone-config-summary">
+          <div className="aone-config-nav">
+            <s-button href={appPath("/prompts")}>← Back to Prompts</s-button>
+            {message ? (
+              <s-badge tone="success">{message}</s-badge>
+            ) : (
+              <span className="aone-field-hint">{saving ? "Saving…" : ""}</span>
+            )}
           </div>
-          <div>
-            <div className="aone-field-hint">Configuration Status</div>
-            <StatusBadge status={detail.status} />
+
+          <div className="aone-config-meta">
+            <div className="aone-config-meta-item">
+              <div className="aone-config-meta-label">Source</div>
+              <div className="aone-config-meta-value">
+                <StatusBadge status={detail.source} />
+              </div>
+            </div>
+            <div className="aone-config-meta-item">
+              <div className="aone-config-meta-label">Configuration Status</div>
+              <div className="aone-config-meta-value">
+                <StatusBadge status={detail.status} />
+              </div>
+            </div>
+            <div className="aone-config-meta-item">
+              <div className="aone-config-meta-label">Total Steps</div>
+              <div className="aone-config-meta-value">{detail.stepCount}</div>
+            </div>
+            <label className="aone-config-toggle">
+              <input
+                type="checkbox"
+                checked={detail.isEnabled}
+                disabled={saving}
+                onChange={(e) => void setConfigEnabled(e.target.checked)}
+              />
+              <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
+            </label>
           </div>
-          <div>
-            <div className="aone-field-hint">Total Steps</div>
-            <strong>{detail.stepCount}</strong>
-          </div>
-          <label className="aone-checkbox-row" style={{ marginLeft: "auto" }}>
-            <input
-              type="checkbox"
-              checked={detail.isEnabled}
-              disabled={saving}
-              onChange={(e) => void setConfigEnabled(e.target.checked)}
-            />
-            <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
-          </label>
+
+          {detail.status === "NOT_READY" ? (
+            <s-banner tone="warning" heading="Not ready for processing">
+              <s-paragraph>
+                This configuration is enabled but every step is disabled. Enable at least one step
+                before processing products of this type.
+              </s-paragraph>
+            </s-banner>
+          ) : null}
         </div>
-        {detail.status === "NOT_READY" ? (
-          <s-banner tone="warning" heading="Not ready for processing">
-            <s-paragraph>
-              This configuration is enabled but every step is disabled. Enable at least one step
-              before processing products of this type.
-            </s-paragraph>
-          </s-banner>
-        ) : null}
       </s-section>
 
       <s-section heading="Sequential prompt steps">
@@ -427,31 +406,33 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
             <DataTable>
               <thead>
                 <tr>
-                  <th>Order</th>
+                  <th className="aone-col-order">Order</th>
                   <th>Step Name</th>
                   <th>Prompt Preview</th>
                   <th>Variables</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th className="aone-col-status">Status</th>
+                  <th className="aone-col-actions">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {steps.map((step, index) => (
                   <tr key={step.id}>
-                    <td>{step.stepOrder}</td>
+                    <td className="aone-col-order">{step.stepOrder}</td>
                     <td>
                       <strong>{step.name}</strong>
                     </td>
-                    <td title={step.promptText}>{truncate(step.promptText)}</td>
-                    <td>
+                    <td className="aone-col-preview" title={step.promptText}>
+                      {truncate(step.promptText, 100)}
+                    </td>
+                    <td className="aone-col-variables">
                       {step.variables.length
                         ? step.variables.map((v) => `{{${v}}}`).join(", ")
                         : "—"}
                     </td>
-                    <td>
+                    <td className="aone-col-status">
                       <StatusBadge status={step.isEnabled ? "ENABLED" : "DISABLED"} />
                     </td>
-                    <td>
+                    <td className="aone-col-actions">
                       <div className="aone-step-actions">
                         <button
                           type="button"
@@ -498,7 +479,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 ))}
               </tbody>
             </DataTable>
-            <div className="aone-toolbar" style={{ marginTop: "1rem" }}>
+            <div className="aone-config-steps-footer">
               <s-button variant="primary" onClick={openAddStep}>
                 + Add Prompt Step
               </s-button>
@@ -582,7 +563,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               </label>
               <textarea
                 id="step-prompt"
-                ref={textareaRef}
                 className="aone-input aone-prompt-textarea"
                 rows={10}
                 value={form.promptText}
@@ -593,31 +573,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               <div className="aone-field-hint">
                 {form.promptText.length.toLocaleString()} / {MAX_PROMPT.toLocaleString()} characters
               </div>
-            </div>
-            <div className="aone-field-group">
-              <label className="aone-field-label" htmlFor="insert-variable">
-                Insert Variable
-              </label>
-              <select
-                id="insert-variable"
-                className="aone-select"
-                defaultValue=""
-                disabled={saving}
-                onChange={(e) => {
-                  const token = e.target.value;
-                  if (token) {
-                    insertVariable(token);
-                    e.target.value = "";
-                  }
-                }}
-              >
-                <option value="">Select a variable…</option>
-                {PROMPT_VARIABLES.map((v) => (
-                  <option key={v.name} value={v.token}>
-                    {v.token}
-                  </option>
-                ))}
-              </select>
             </div>
             <label className="aone-checkbox-row">
               <input

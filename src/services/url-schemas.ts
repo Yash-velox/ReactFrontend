@@ -23,15 +23,6 @@ export const endpoints = {
   health: `${API_BASE_URL}/health`,
   tenantCheckConfig: `${API_BASE_URL}/tenant/checkConfig`,
 
-  // POC
-  pocCreateJob: `${API_BASE_URL}/api/poc/image-enhancement/jobs`,
-  pocGetJob: (jobId: string) => `${API_BASE_URL}/api/poc/image-enhancement/jobs/${jobId}`,
-  pocGetStepImage: (jobId: string, stepNumber: number) =>
-    `${API_BASE_URL}/api/poc/image-enhancement/jobs/${jobId}/steps/${stepNumber}/image`,
-  pocDownloadFinal: (jobId: string) =>
-    `${API_BASE_URL}/api/poc/image-enhancement/jobs/${jobId}/final/download`,
-  pocRetryJob: (jobId: string) => `${API_BASE_URL}/api/poc/image-enhancement/jobs/${jobId}/retry`,
-
   // Week 2 — catalog sync
   syncCatalog: `${API_BASE_URL}/api/sync/catalog`,
   syncStatus: `${API_BASE_URL}/api/sync/status`,

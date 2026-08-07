@@ -4,7 +4,6 @@ import { AppErrorBoundary } from "./components/ui/AppErrorBoundary";
 import { AppBridgeProvider } from "./providers/AppBridgeProvider";
 import HomePage from "./screens/HomePage";
 import JobsPage from "./screens/JobsPage";
-import PocPage from "./screens/PocPage";
 import ProductsPage from "./screens/ProductsPage";
 import PromptConfigurationPage from "./screens/PromptConfigurationPage";
 import PromptsPage from "./screens/PromptsPage";
@@ -26,7 +25,6 @@ function AppNav() {
       <a href="/jobs">Jobs</a>
       <a href="/prompts">Prompts</a>
       <a href="/settings">Settings</a>
-      <a href="/poc">POC</a>
     </NavMenu>
   );
 }
@@ -40,7 +38,6 @@ function AppRoutes() {
       <Route path="/prompts" element={<PromptsPage />} />
       <Route path="/prompts/:productTypeId" element={<PromptConfigurationPage />} />
       <Route path="/settings" element={<SettingsPage />} />
-      <Route path="/poc" element={<PocPage />} />
       {/* Safety aliases if a link still carries the Remix /app prefix */}
       <Route path="/app" element={<HomePage />} />
       <Route path="/app/products" element={<ProductsPage />} />
@@ -48,7 +45,9 @@ function AppRoutes() {
       <Route path="/app/prompts" element={<PromptsPage />} />
       <Route path="/app/prompts/:productTypeId" element={<PromptConfigurationPage />} />
       <Route path="/app/settings" element={<SettingsPage />} />
-      <Route path="/app/poc" element={<PocPage />} />
+      {/* Old POC bookmarks → Home (POC UI removed; Backend POC API still exists) */}
+      <Route path="/poc" element={<Navigate to="/" replace />} />
+      <Route path="/app/poc" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

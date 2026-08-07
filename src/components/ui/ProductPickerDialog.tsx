@@ -292,13 +292,16 @@ export default function ProductPickerDialog({
           <div className="aone-picker-filter-menu" ref={typeMenuRef}>
             <button
               type="button"
-              className="aone-picker-filter-add"
+              className={`aone-picker-filter-add${typeMenuOpen ? " is-open" : ""}`}
+              aria-expanded={typeMenuOpen}
+              aria-haspopup="listbox"
               onClick={() => {
                 setTypeMenuOpen((v) => !v);
                 setStatusMenuOpen(false);
               }}
             >
-              {productType ? "Change type" : "Add filter"} +
+              {productType ? "Change type" : "Type"}
+              <span aria-hidden="true">+</span>
             </button>
             {typeMenuOpen ? (
               <div className="aone-picker-menu" role="listbox">
@@ -334,13 +337,16 @@ export default function ProductPickerDialog({
           <div className="aone-picker-filter-menu" ref={statusMenuRef}>
             <button
               type="button"
-              className="aone-picker-filter-add"
+              className={`aone-picker-filter-add${statusMenuOpen ? " is-open" : ""}`}
+              aria-expanded={statusMenuOpen}
+              aria-haspopup="listbox"
               onClick={() => {
                 setStatusMenuOpen((v) => !v);
                 setTypeMenuOpen(false);
               }}
             >
-              Status +
+              Status
+              <span aria-hidden="true">+</span>
             </button>
             {statusMenuOpen ? (
               <div className="aone-picker-menu" role="listbox">

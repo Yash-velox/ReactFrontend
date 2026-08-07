@@ -298,7 +298,7 @@ export default function JobsPage() {
       <s-section heading="Processing monitor">
         <s-paragraph>
           Create manual batches from Shopify products, monitor webhook-driven Secondary Queue intake, and
-          track batch progress. No local image uploads in this phase.
+          track batch progress.
         </s-paragraph>
       </s-section>
 
