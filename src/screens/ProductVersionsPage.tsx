@@ -70,15 +70,84 @@ type RollbackPreview = {
   } | null;
 };
 
+type RollbackConflictDetails = {
+  hasConflict?: boolean;
+  membershipChanged?: boolean;
+  addedMediaIds?: string[];
+  removedMediaIds?: string[];
+  orderChanged?: boolean;
+  altChanges?: unknown[];
+  featuredMediaChanged?: boolean;
+  variantChanges?: unknown[];
+  summary?: string | null;
+  forceApplied?: boolean;
+  forceRequested?: boolean;
+  reprocessRequired?: boolean;
+};
+
 type RollbackOperation = {
   operationId: string;
   status: string;
   currentStage?: string | null;
   lastErrorCode?: string | null;
   lastErrorMessage?: string | null;
+  conflictDetails?: RollbackConflictDetails | null;
+  forceDespiteConflict?: boolean;
 };
 
 const ACTIVE_ROLLBACK = new Set(["QUEUED", "ROLLING_BACK"]);
+
+function shortIdentity(identity: string): string {
+  if (identity.startsWith("cdn:")) {
+    const path = identity.slice(4);
+    const name = path.split("/").pop();
+    return name || path;
+  }
+  if (identity.startsWith("file:") || identity.startsWith("media:")) {
+    const parts = identity.split("/");
+    return parts[parts.length - 1] || identity;
+  }
+  return identity;
+}
+
+function humanizeConflictLines(details?: RollbackConflictDetails | null): string[] {
+  if (!details) return [];
+  const lines: string[] = [];
+  const removed = details.removedMediaIds ?? [];
+  const added = details.addedMediaIds ?? [];
+  if (removed.length) {
+    lines.push(
+      `Active version expects image(s) not found on live Shopify: ${removed
+        .slice(0, 5)
+        .map(shortIdentity)
+        .join(", ")}${removed.length > 5 ? ` (+${removed.length - 5} more)` : ""}`,
+    );
+  }
+  if (added.length) {
+    lines.push(
+      `Live Shopify has extra image(s) not in the active version: ${added
+        .slice(0, 5)
+        .map(shortIdentity)
+        .join(", ")}${added.length > 5 ? ` (+${added.length - 5} more)` : ""}`,
+    );
+  }
+  if (details.orderChanged) {
+    lines.push("Image order differs from the active version.");
+  }
+  if ((details.altChanges?.length ?? 0) > 0) {
+    lines.push(`Alt text differs on ${details.altChanges!.length} image(s).`);
+  }
+  if (details.featuredMediaChanged) {
+    lines.push("Featured image differs from the active version.");
+  }
+  if ((details.variantChanges?.length ?? 0) > 0) {
+    lines.push(`Variant image links differ on ${details.variantChanges!.length} variant(s).`);
+  }
+  if (!lines.length && details.summary) {
+    return [details.summary];
+  }
+  return lines;
+}
 
 type Props = {
   productId?: string;
@@ -139,9 +208,15 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [preview, setPreview] = useState<RollbackPreview | null>(null);
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null);
   const [confirmChecked, setConfirmChecked] = useState(false);
+  const [forceConfirmChecked, setForceConfirmChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rollbackOp, setRollbackOp] = useState<RollbackOperation | null>(null);
   const pollRef = useRef<number | null>(null);
+
+  const conflictLines = useMemo(
+    () => humanizeConflictLines(rollbackOp?.conflictDetails),
+    [rollbackOp?.conflictDetails],
+  );
 
   const loadVersions = useCallback(async () => {
     if (!productId) return;
@@ -249,18 +324,23 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     }
   };
 
-  const retryRollback = async () => {
+  const retryRollback = async (forceDespiteConflict = false) => {
     if (!rollbackOp?.operationId) return;
+    if (forceDespiteConflict && !forceConfirmChecked) return;
     setBusy(true);
     try {
       const res = await authenticatedFetch(endpoints.rollbackOperationRetry(rollbackOp.operationId), {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forceDespiteConflict }),
       });
       const data = await parseApiResponse<{ operationId: string; status: string }>(res);
+      setForceConfirmChecked(false);
       setRollbackOp({
         operationId: data.operationId,
         status: data.status,
         currentStage: "QUEUED",
+        forceDespiteConflict,
       });
       pollOperation(data.operationId);
     } catch (err) {
@@ -320,8 +400,17 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                 Rollback: {rollbackOp.status}
                 {rollbackOp.currentStage ? ` · ${rollbackOp.currentStage}` : ""}
               </s-text>
-              {rollbackOp.lastErrorMessage ? (
+              {rollbackOp.lastErrorMessage &&
+              !(rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0) ? (
                 <s-text>{rollbackOp.lastErrorMessage}</s-text>
+              ) : null}
+              {rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0 ? (
+                <s-stack direction="block" gap="small">
+                  <s-text type="strong">What differs</s-text>
+                  {conflictLines.map((line) => (
+                    <s-text key={line}>{line}</s-text>
+                  ))}
+                </s-stack>
               ) : null}
               {rollbackOp.status === "RESTORE_FAILED" ? (
                 <s-text>
@@ -329,10 +418,41 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                   in Shopify Admin.
                 </s-text>
               ) : null}
+              {rollbackOp.status === "ROLLBACK_CONFLICT" ? (
+                <s-stack direction="block" gap="small">
+                  <s-banner tone="warning">
+                    Force revert will overwrite whatever is currently on the live Shopify product with
+                    the selected historical version, even though live media no longer matches the
+                    active version snapshot. Merchant edits on live may be replaced.
+                  </s-banner>
+                  <label className="aone-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={forceConfirmChecked}
+                      onChange={(e) => setForceConfirmChecked(e.target.checked)}
+                    />
+                    <span>
+                      I understand live Shopify media differs from the active version, and I want to
+                      force revert anyway.
+                    </span>
+                  </label>
+                  <div className="aone-toolbar">
+                    <s-button onClick={() => void retryRollback(false)} disabled={busy}>
+                      Retry Rollback
+                    </s-button>
+                    <s-button
+                      tone="critical"
+                      onClick={() => void retryRollback(true)}
+                      disabled={busy || !forceConfirmChecked}
+                    >
+                      Force revert anyway
+                    </s-button>
+                  </div>
+                </s-stack>
+              ) : null}
               {(rollbackOp.status === "ROLLBACK_FAILED" ||
-                rollbackOp.status === "ROLLBACK_CONFLICT" ||
                 rollbackOp.status === "RESTORE_FAILED") && (
-                <s-button onClick={() => void retryRollback()} disabled={busy}>
+                <s-button onClick={() => void retryRollback(false)} disabled={busy}>
                   Retry Rollback
                 </s-button>
               )}
