@@ -63,14 +63,14 @@ export function getStatusConfig(status: string): StatusConfig {
 
 type Props = {
   status: string;
-  /** Show raw enum in title tooltip */
-  title?: boolean;
+  /** Show raw enum in the HTML tooltip (do not name this `title` — it can leak onto host elements). */
+  showTooltip?: boolean;
 };
 
-export default function StatusBadge({ status, title = true }: Props) {
+export default function StatusBadge({ status, showTooltip = true }: Props) {
   const config = getStatusConfig(status);
   const badge = <s-badge tone={config.tone}>{config.label}</s-badge>;
-  if (title && status !== config.label) {
+  if (showTooltip && status !== config.label) {
     return <span title={status}>{badge}</span>;
   }
   return badge;

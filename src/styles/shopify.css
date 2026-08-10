@@ -1091,35 +1091,17 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--aone-space-2);
-  min-width: 200px;
-  max-width: 280px;
+  gap: 4px;
+  min-width: 140px;
+  max-width: 220px;
 }
 
 .aone-phase-line {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
-  border: 1px solid var(--aone-border);
-  border-radius: var(--aone-radius-sm);
-  background: var(--aone-bg-subdued);
-  box-sizing: border-box;
-}
-
-.aone-phase-title {
   margin: 0;
   font-size: 12px;
-  font-weight: 650;
-  line-height: 1.3;
-  color: var(--aone-text);
-}
-
-.aone-phase-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--aone-text-subdued);
 }
 
 .aone-phase-chip {
@@ -1134,59 +1116,6 @@ textarea:focus-visible {
   line-height: 1.4;
   color: var(--aone-text-subdued);
   white-space: nowrap;
-}
-
-.aone-phase-chip-warn {
-  border-color: color-mix(in srgb, #b98900 35%, var(--aone-border));
-  background: color-mix(in srgb, #b98900 10%, var(--aone-bg));
-  color: #8a6116;
-}
-
-.aone-phase-bar {
-  position: relative;
-  height: 4px;
-  width: 100%;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--aone-border) 80%, transparent);
-  overflow: hidden;
-}
-
-.aone-phase-bar-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--aone-focus);
-  transition: width 0.35s ease;
-}
-
-.aone-phase-bar-indeterminate .aone-phase-bar-pulse {
-  display: block;
-  height: 100%;
-  width: 40%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--aone-focus) 70%, var(--aone-border));
-  animation: aone-phase-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes aone-phase-pulse {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(280%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .aone-phase-bar-fill {
-    transition: none;
-  }
-
-  .aone-phase-bar-indeterminate .aone-phase-bar-pulse {
-    animation: none;
-    width: 100%;
-    opacity: 0.45;
-  }
 }
 
 /* ── Product versions page ── */

@@ -89,47 +89,19 @@ function publishStageLabel(status: string | null | undefined): string {
   }
 }
 
-function openaiBatchProgress(batch: {
+/** Short merchant-facing label for OpenAI Batch phases (no request/retry chrome). */
+function openaiBatchPhaseLabel(batch: {
   status: string;
   processingPhase?: string | null;
-  currentWorkflowStep?: number;
-  totalWorkflowSteps?: number;
-  openaiRequestsTotal?: number;
-  openaiRequestsCompleted?: number;
-  openaiRequestsFailed?: number;
-}): {
-  title: string;
-  stepLabel: string | null;
-  countLabel: string | null;
-  completed: number;
-  total: number;
-  failed: number;
-} | null {
+}): string | null {
   if (batch.status !== "PROCESSING" || !batch.processingPhase) return null;
   const phase = batch.processingPhase;
-  const stepLabel =
-    batch.totalWorkflowSteps && batch.currentWorkflowStep
-      ? `Step ${batch.currentWorkflowStep} of ${batch.totalWorkflowSteps}`
-      : null;
-  const total = typeof batch.openaiRequestsTotal === "number" ? batch.openaiRequestsTotal : 0;
-  const completed = batch.openaiRequestsCompleted ?? 0;
-  const failed = batch.openaiRequestsFailed ?? 0;
-  const countLabel = total > 0 ? `${completed} of ${total} requests` : null;
-
-  let title: string;
-  if (phase === "WAITING_FOR_OPENAI" || phase === "OPENAI_BATCH_SUBMITTED") {
-    title = "Waiting for OpenAI Batch";
-  } else if (phase === "RETRYING_FAILED_REQUESTS") {
-    title = "Retrying failed OpenAI requests";
-  } else if (phase === "UPLOADING_TO_SHOPIFY_FILES") {
-    title = "Uploading final images to Shopify Files";
-  } else if (phase === "IMPORTING_STAGE_RESULTS" || phase === "COLLECTING_OPENAI_RESULTS") {
-    title = "Collecting OpenAI Batch results";
-  } else {
-    title = phase.replaceAll("_", " ");
+  if (phase === "UPLOADING_TO_SHOPIFY_FILES") return "Uploading to Shopify Files";
+  if (phase === "IMPORTING_STAGE_RESULTS" || phase === "COLLECTING_OPENAI_RESULTS") {
+    return "Collecting OpenAI batch results";
   }
-
-  return { title, stepLabel, countLabel, completed, total, failed };
+  // Includes WAITING_FOR_OPENAI, OPENAI_BATCH_SUBMITTED, RETRYING_FAILED_REQUESTS, etc.
+  return "Processing OpenAI batch";
 }
 
 function OpenAIPhaseLine({
@@ -138,48 +110,11 @@ function OpenAIPhaseLine({
   batch: {
     status: string;
     processingPhase?: string | null;
-    currentWorkflowStep?: number;
-    totalWorkflowSteps?: number;
-    openaiRequestsTotal?: number;
-    openaiRequestsCompleted?: number;
-    openaiRequestsFailed?: number;
   };
 }) {
-  const progress = openaiBatchProgress(batch);
-  if (!progress) return null;
-  const ratio =
-    progress.total > 0 ? Math.min(100, Math.round((progress.completed / progress.total) * 100)) : null;
-
-  return (
-    <div className="aone-phase-line" title={`${progress.title}${progress.countLabel ? ` · ${progress.countLabel}` : ""}`}>
-      <p className="aone-phase-title">{progress.title}</p>
-      {(progress.stepLabel || progress.countLabel) && (
-        <div className="aone-phase-meta">
-          {progress.stepLabel ? <span className="aone-phase-chip">{progress.stepLabel}</span> : null}
-          {progress.countLabel ? <span className="aone-phase-chip">{progress.countLabel}</span> : null}
-          {progress.failed > 0 ? (
-            <span className="aone-phase-chip aone-phase-chip-warn">{progress.failed} failed</span>
-          ) : null}
-        </div>
-      )}
-      {ratio != null ? (
-        <div
-          className="aone-phase-bar"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={ratio}
-          aria-label="OpenAI batch progress"
-        >
-          <span className="aone-phase-bar-fill" style={{ width: `${ratio}%` }} />
-        </div>
-      ) : (
-        <div className="aone-phase-bar aone-phase-bar-indeterminate" aria-hidden="true">
-          <span className="aone-phase-bar-pulse" />
-        </div>
-      )}
-    </div>
-  );
+  const label = openaiBatchPhaseLabel(batch);
+  if (!label) return null;
+  return <p className="aone-phase-line">{label}</p>;
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -953,9 +888,7 @@ export default function JobsPage() {
                     <StatusBadge status={selectedBatch.triggerType} />
                     <StatusBadge status={selectedBatch.status} />
                   </s-stack>
-                  {openaiBatchProgress(selectedBatch) ? (
-                    <OpenAIPhaseLine batch={selectedBatch} />
-                  ) : null}
+                  <OpenAIPhaseLine batch={selectedBatch} />
                   {selectedBatch.errorSummary ? (
                     <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
                   ) : null}
