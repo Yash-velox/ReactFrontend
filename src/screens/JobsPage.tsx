@@ -89,34 +89,6 @@ function publishStageLabel(status: string | null | undefined): string {
   }
 }
 
-/** Short merchant-facing label for OpenAI Batch phases (no request/retry chrome). */
-function openaiBatchPhaseLabel(batch: {
-  status: string;
-  processingPhase?: string | null;
-}): string | null {
-  if (batch.status !== "PROCESSING" || !batch.processingPhase) return null;
-  const phase = batch.processingPhase;
-  if (phase === "UPLOADING_TO_SHOPIFY_FILES") return "Uploading to Shopify Files";
-  if (phase === "IMPORTING_STAGE_RESULTS" || phase === "COLLECTING_OPENAI_RESULTS") {
-    return "Collecting OpenAI batch results";
-  }
-  // Includes WAITING_FOR_OPENAI, OPENAI_BATCH_SUBMITTED, RETRYING_FAILED_REQUESTS, etc.
-  return "Processing OpenAI batch";
-}
-
-function OpenAIPhaseLine({
-  batch,
-}: {
-  batch: {
-    status: string;
-    processingPhase?: string | null;
-  };
-}) {
-  const label = openaiBatchPhaseLabel(batch);
-  if (!label) return null;
-  return <p className="aone-phase-line">{label}</p>;
-}
-
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   const n = Math.max(1, size);
@@ -836,7 +808,6 @@ export default function JobsPage() {
                     <td>
                       <div className="aone-batch-status-cell">
                         <StatusBadge status={batch.status} />
-                        <OpenAIPhaseLine batch={batch} />
                       </div>
                     </td>
                     <td>{batch.productCount}</td>
@@ -888,7 +859,6 @@ export default function JobsPage() {
                     <StatusBadge status={selectedBatch.triggerType} />
                     <StatusBadge status={selectedBatch.status} />
                   </s-stack>
-                  <OpenAIPhaseLine batch={selectedBatch} />
                   {selectedBatch.errorSummary ? (
                     <s-text tone="critical">{selectedBatch.errorSummary}</s-text>
                   ) : null}
