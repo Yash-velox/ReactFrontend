@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { NavMenu } from "@shopify/app-bridge-react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AppErrorBoundary } from "./components/ui/AppErrorBoundary";
 import { AppBridgeProvider } from "./providers/AppBridgeProvider";
 import HomePage from "./screens/HomePage";
@@ -10,6 +11,7 @@ import ProductVersionsPage from "./screens/ProductVersionsPage";
 import PromptConfigurationPage from "./screens/PromptConfigurationPage";
 import PromptsPage from "./screens/PromptsPage";
 import SettingsPage from "./screens/SettingsPage";
+import { registerAppNavigate } from "./utils/routes";
 import "./styles/shopify.css";
 
 /**
@@ -24,12 +26,21 @@ function AppNav() {
         Home
       </a>
       <a href="/products">Products</a>
-      <a href="/products/versions">Versions</a>
-      <a href="/jobs">Jobs</a>
       <a href="/prompts">Prompts</a>
+      <a href="/jobs">Jobs</a>
+      <a href="/products/versions">Versions</a>
       <a href="/settings">Settings</a>
     </NavMenu>
   );
+}
+
+function AppNavigateBridge() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    registerAppNavigate((to) => navigate(to));
+    return () => registerAppNavigate(null);
+  }, [navigate]);
+  return null;
 }
 
 function AppRoutes() {
@@ -65,6 +76,7 @@ function App() {
     <AppBridgeProvider>
       <AppErrorBoundary>
         <BrowserRouter>
+          <AppNavigateBridge />
           <AppNav />
           <AppRoutes />
         </BrowserRouter>
