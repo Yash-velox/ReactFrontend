@@ -350,6 +350,40 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     }
   };
 
+  const activeGeneratedImages = useMemo(() => {
+    const linked = activeDetail?.linkedImageVersions ?? [];
+    return linked.filter(
+      (iv) =>
+        String(iv.versionType || "").toUpperCase() === "GENERATED" ||
+        (iv.isOriginal === false && String(iv.versionType || "").toUpperCase() !== "ORIGINAL"),
+    );
+  }, [activeDetail?.linkedImageVersions]);
+
+  const activeSnapshotMedia = useMemo(() => {
+    // Prefer generated pipeline outputs when present (e.g. one AI image among a larger gallery).
+    if (activeGeneratedImages.length > 0) {
+      return activeGeneratedImages.map((iv) => ({
+        key: iv.versionId,
+        cdnUrl: iv.shopifyCdnUrl,
+        label: `${iv.versionType} v${iv.versionNumber}`,
+        isOriginal: Boolean(iv.isOriginal),
+        fileSizeBytes: iv.fileSizeBytes,
+      }));
+    }
+    // Fallback: product media version snapshot (full gallery for ORIGINAL-only versions).
+    const media = activeDetail?.media ?? [];
+    return media
+      .slice()
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map((m, idx) => ({
+        key: `${m.mediaGid || m.fileGid || idx}`,
+        cdnUrl: m.cdnUrl,
+        label: m.filename || m.altText || `Image ${idx + 1}`,
+        isOriginal: false,
+        fileSizeBytes: null as number | null,
+      }));
+  }, [activeDetail?.media, activeGeneratedImages]);
+
   const heading = useMemo(() => {
     const active = versions.find((v) => v.isActive);
     return active ? `Product Versions · v${active.versionNumber} active` : "Product Versions";
@@ -460,31 +494,30 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </s-banner>
         ) : null}
 
-        {activeDetail?.linkedImageVersions && activeDetail.linkedImageVersions.length > 0 ? (
+        {activeSnapshotMedia.length > 0 ? (
           <s-section heading="Active snapshot">
             <s-paragraph>
-              Linked image files currently live on this product ({activeDetail.linkedImageVersions.length}{" "}
-              image{activeDetail.linkedImageVersions.length === 1 ? "" : "s"}).
+              {activeGeneratedImages.length > 0
+                ? `Generated image file${activeGeneratedImages.length === 1 ? "" : "s"} in the active version (${activeGeneratedImages.length}).`
+                : `Images in the active product version (${activeSnapshotMedia.length}).`}
             </s-paragraph>
             <div className="aone-media-grid aone-media-grid-lg">
-              {activeDetail.linkedImageVersions.map((iv) => (
-                <figure key={iv.versionId} className="aone-media-tile">
-                  {iv.shopifyCdnUrl ? (
+              {activeSnapshotMedia.map((tile) => (
+                <figure key={tile.key} className="aone-media-tile">
+                  {tile.cdnUrl ? (
                     <img
-                      src={iv.shopifyCdnUrl}
-                      alt={`${iv.versionType} v${iv.versionNumber}`}
+                      src={tile.cdnUrl}
+                      alt={tile.label}
                       className="aone-media-tile-img"
                     />
                   ) : (
                     <div className="aone-media-tile-fallback">No preview</div>
                   )}
                   <figcaption className="aone-media-tile-caption">
-                    <span className="aone-media-tile-type">
-                      {iv.versionType} v{iv.versionNumber}
-                    </span>
-                    {iv.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
-                    {typeof iv.fileSizeBytes === "number" ? (
-                      <span className="aone-field-hint">{Math.round(iv.fileSizeBytes / 1024)} KB</span>
+                    <span className="aone-media-tile-type">{tile.label}</span>
+                    {tile.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
+                    {typeof tile.fileSizeBytes === "number" ? (
+                      <span className="aone-field-hint">{Math.round(tile.fileSizeBytes / 1024)} KB</span>
                     ) : null}
                   </figcaption>
                 </figure>
