@@ -418,8 +418,8 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         {error ? <ErrorBanner message={error} onRetry={() => void loadVersions()} /> : null}
 
         {rollbackOp ? (
-          <s-banner
-            tone={
+          <div
+            className={`aone-rollback-panel aone-rollback-panel--${
               rollbackOp.status === "RESTORE_FAILED"
                 ? "critical"
                 : rollbackOp.status === "ROLLED_BACK"
@@ -427,71 +427,108 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                   : rollbackOp.status === "ROLLBACK_FAILED" || rollbackOp.status === "ROLLBACK_CONFLICT"
                     ? "warning"
                     : "info"
-            }
+            }`}
           >
-            <s-stack direction="block" gap="small">
-              <s-text type="strong">
-                Rollback: {rollbackOp.status}
-                {rollbackOp.currentStage ? ` · ${rollbackOp.currentStage}` : ""}
-              </s-text>
-              {rollbackOp.lastErrorMessage &&
-              !(rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0) ? (
-                <s-text>{rollbackOp.lastErrorMessage}</s-text>
-              ) : null}
-              {rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0 ? (
-                <s-stack direction="block" gap="small">
-                  <s-text type="strong">What differs</s-text>
-                  {conflictLines.map((line) => (
-                    <s-text key={line}>{line}</s-text>
-                  ))}
-                </s-stack>
-              ) : null}
-              {rollbackOp.status === "RESTORE_FAILED" ? (
-                <s-text>
-                  Rollback and automatic recovery could not be verified. Review the product directly
-                  in Shopify Admin.
-                </s-text>
-              ) : null}
-              {rollbackOp.status === "ROLLBACK_CONFLICT" ? (
-                <s-stack direction="block" gap="small">
-                  <s-banner tone="warning">
-                    Force revert will overwrite whatever is currently on the live Shopify product with
-                    the selected historical version, even though live media no longer matches the
-                    active version snapshot. Merchant edits on live may be replaced.
-                  </s-banner>
-                  <label className="aone-checkbox-row">
-                    <input
-                      type="checkbox"
-                      checked={forceConfirmChecked}
-                      onChange={(e) => setForceConfirmChecked(e.target.checked)}
-                    />
-                    <span>
-                      I understand live Shopify media differs from the active version, and I want to
-                      force revert anyway.
-                    </span>
-                  </label>
-                  <div className="aone-toolbar">
-                    <s-button onClick={() => void retryRollback(false)} disabled={busy}>
-                      Retry Rollback
-                    </s-button>
-                    <s-button
-                      tone="critical"
-                      onClick={() => void retryRollback(true)}
-                      disabled={busy || !forceConfirmChecked}
-                    >
-                      Force revert anyway
-                    </s-button>
-                  </div>
-                </s-stack>
-              ) : null}
-              {(rollbackOp.status === "ROLLBACK_FAILED" ||
-                rollbackOp.status === "RESTORE_FAILED") && (
+            <div className="aone-rollback-panel-header">
+              <StatusBadge status={rollbackOp.status} />
+              <div className="aone-rollback-panel-titles">
+                <p className="aone-rollback-panel-title">
+                  {rollbackOp.status === "ROLLBACK_CONFLICT"
+                    ? "Rollback blocked — live media differs"
+                    : rollbackOp.status === "ROLLED_BACK"
+                      ? "Rollback completed"
+                      : rollbackOp.status === "RESTORE_FAILED"
+                        ? "Rollback restore failed"
+                        : rollbackOp.status === "ROLLBACK_FAILED"
+                          ? "Rollback failed"
+                          : "Rollback in progress"}
+                </p>
+                {rollbackOp.currentStage && rollbackOp.currentStage !== rollbackOp.status ? (
+                  <p className="aone-rollback-panel-stage">Stage: {rollbackOp.currentStage}</p>
+                ) : null}
+              </div>
+            </div>
+
+            {rollbackOp.lastErrorMessage &&
+            !(rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0) ? (
+              <p className="aone-rollback-panel-message">{rollbackOp.lastErrorMessage}</p>
+            ) : null}
+
+            {rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0 ? (
+              <div className="aone-rollback-diff">
+                <p className="aone-rollback-diff-label">What differs</p>
+                <ul className="aone-rollback-diff-list">
+                  {conflictLines.map((line) => {
+                    const colon = line.indexOf(": ");
+                    if (colon > 0 && colon < line.length - 2) {
+                      const head = line.slice(0, colon + 1);
+                      const detail = line.slice(colon + 2);
+                      return (
+                        <li key={line}>
+                          <span className="aone-rollback-diff-head">{head}</span>
+                          <code className="aone-rollback-diff-file">{detail}</code>
+                        </li>
+                      );
+                    }
+                    return <li key={line}>{line}</li>;
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
+            {rollbackOp.status === "RESTORE_FAILED" ? (
+              <p className="aone-rollback-panel-message">
+                Rollback and automatic recovery could not be verified. Review the product directly in
+                Shopify Admin.
+              </p>
+            ) : null}
+
+            {rollbackOp.status === "ROLLBACK_CONFLICT" ? (
+              <div className="aone-rollback-force">
+                <div className="aone-rollback-force-callout" role="note">
+                  <p className="aone-rollback-force-callout-title">Force revert overwrites live media</p>
+                  <p className="aone-rollback-force-callout-body">
+                    This replaces whatever is currently on the Shopify product with the selected
+                    historical version, even though live media no longer matches the active version
+                    snapshot. Merchant edits on live may be lost.
+                  </p>
+                </div>
+                <label className="aone-checkbox-row aone-rollback-force-check">
+                  <input
+                    type="checkbox"
+                    checked={forceConfirmChecked}
+                    onChange={(e) => setForceConfirmChecked(e.target.checked)}
+                  />
+                  <span>
+                    I understand live Shopify media differs from the active version, and I want to
+                    force revert anyway.
+                  </span>
+                </label>
+                <div className="aone-rollback-actions">
+                  <s-button onClick={() => void retryRollback(false)} disabled={busy}>
+                    Retry rollback
+                  </s-button>
+                  <s-button
+                    tone="critical"
+                    variant="primary"
+                    onClick={() => void retryRollback(true)}
+                    disabled={busy || !forceConfirmChecked}
+                  >
+                    Force revert anyway
+                  </s-button>
+                </div>
+              </div>
+            ) : null}
+
+            {(rollbackOp.status === "ROLLBACK_FAILED" ||
+              rollbackOp.status === "RESTORE_FAILED") && (
+              <div className="aone-rollback-actions">
                 <s-button onClick={() => void retryRollback(false)} disabled={busy}>
-                  Retry Rollback
+                  Retry rollback
                 </s-button>
-              )}
-            </s-stack>
-          </s-banner>
+              </div>
+            )}
+          </div>
         ) : null}
 
         {activeSnapshotMedia.length > 0 ? (

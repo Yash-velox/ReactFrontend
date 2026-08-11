@@ -46,6 +46,13 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   MANUAL: { tone: "info", label: "Manual" },
   AUTOMATIC: { tone: "neutral", label: "Automatic" },
   RETRY: { tone: "caution", label: "Retry" },
+
+  // Product media rollback
+  ROLLING_BACK: { tone: "info", label: "Rolling back" },
+  ROLLED_BACK: { tone: "success", label: "Rolled back" },
+  ROLLBACK_CONFLICT: { tone: "caution", label: "Conflict" },
+  ROLLBACK_FAILED: { tone: "critical", label: "Failed" },
+  RESTORE_FAILED: { tone: "critical", label: "Restore failed" },
 };
 
 function humanizeStatus(status: string): string {
