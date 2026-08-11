@@ -1144,13 +1144,13 @@ a.aone-overflow-item:visited {
 
 .aone-media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(117px, 1fr));
   gap: var(--aone-space-3);
   width: 100%;
 }
 
 .aone-media-grid-lg {
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(117px, 1fr));
 }
 
 .aone-media-tile {
@@ -1158,18 +1158,22 @@ a.aone-overflow-item:visited {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  width: 117px;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
 }
 
 .aone-media-tile-img {
   display: block;
-  width: 100%;
+  width: 117px;
+  max-width: 100%;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   border-radius: var(--aone-radius-sm);
-  border: 1px solid var(--aone-border);
+  border: 2px solid var(--aone-border);
   background: var(--aone-bg-subdued);
+  box-sizing: border-box;
 }
 
 .aone-media-tile.is-primary .aone-media-tile-img {
@@ -1180,13 +1184,15 @@ a.aone-overflow-item:visited {
 .aone-media-tile-fallback {
   display: grid;
   place-items: center;
-  width: 100%;
+  width: 117px;
+  max-width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: var(--aone-radius-sm);
-  border: 1px dashed var(--aone-border);
+  border: 2px dashed var(--aone-border);
   background: var(--aone-bg-subdued);
   font-size: 11px;
   color: var(--aone-text-subdued);
+  box-sizing: border-box;
 }
 
 .aone-media-tile-caption {
