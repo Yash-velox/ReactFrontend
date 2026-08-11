@@ -366,6 +366,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         key: iv.versionId,
         cdnUrl: iv.shopifyCdnUrl,
         label: `${iv.versionType} v${iv.versionNumber}`,
+        title: `${iv.versionType} v${iv.versionNumber}`,
         isOriginal: Boolean(iv.isOriginal),
         fileSizeBytes: iv.fileSizeBytes,
       }));
@@ -375,13 +376,20 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     return media
       .slice()
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-      .map((m, idx) => ({
-        key: `${m.mediaGid || m.fileGid || idx}`,
-        cdnUrl: m.cdnUrl,
-        label: m.filename || m.altText || `Image ${idx + 1}`,
-        isOriginal: false,
-        fileSizeBytes: null as number | null,
-      }));
+      .map((m, idx) => {
+        const fullName = m.filename || m.altText || `Image ${idx + 1}`;
+        const shortName =
+          fullName.length > 28 ? `${fullName.slice(0, 12)}…${fullName.slice(-10)}` : fullName;
+        return {
+          key: `${m.mediaGid || m.fileGid || idx}`,
+          cdnUrl: m.cdnUrl,
+          label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
+          title: fullName,
+          subtitle: shortName,
+          isOriginal: false,
+          fileSizeBytes: null as number | null,
+        };
+      });
   }, [activeDetail?.media, activeGeneratedImages]);
 
   const heading = useMemo(() => {
@@ -540,11 +548,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
             </s-paragraph>
             <div className="aone-media-grid aone-media-grid-lg">
               {activeSnapshotMedia.map((tile) => (
-                <figure key={tile.key} className="aone-media-tile">
+                <figure key={tile.key} className="aone-media-tile" title={tile.title}>
                   {tile.cdnUrl ? (
                     <img
                       src={tile.cdnUrl}
-                      alt={tile.label}
+                      alt={tile.title}
                       className="aone-media-tile-img"
                     />
                   ) : (
@@ -552,6 +560,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                   )}
                   <figcaption className="aone-media-tile-caption">
                     <span className="aone-media-tile-type">{tile.label}</span>
+                    {"subtitle" in tile && tile.subtitle ? (
+                      <span className="aone-media-tile-filename" title={tile.title}>
+                        {tile.subtitle}
+                      </span>
+                    ) : null}
                     {tile.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
                     {typeof tile.fileSizeBytes === "number" ? (
                       <span className="aone-field-hint">{Math.round(tile.fileSizeBytes / 1024)} KB</span>
