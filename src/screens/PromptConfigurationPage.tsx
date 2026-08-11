@@ -10,7 +10,7 @@ import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { PromptConfigurationDetail, PromptStep } from "../types/prompts";
 import { parseApiResponse } from "../utils/api";
-import { appPath } from "../utils/routes";
+import { navigateApp } from "../utils/routes";
 
 const MAX_NAME = 150;
 const MAX_PROMPT = 20000;
@@ -323,7 +323,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
         <s-section>
           <ErrorBanner message={error || "Configuration not found"} />
           <div className="aone-toolbar" style={{ marginTop: "0.75rem" }}>
-            <s-button href={appPath("/prompts")}>← Back to Prompts</s-button>
+            <s-button onClick={() => navigateApp("/prompts")}>← Back to Prompts</s-button>
           </div>
         </s-section>
       </s-page>
@@ -343,7 +343,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
       <s-section heading={detail.name}>
         <div className="aone-config-summary">
           <div className="aone-config-nav">
-            <s-button href={appPath("/prompts")}>← Back to Prompts</s-button>
+            <s-button onClick={() => navigateApp("/prompts")}>← Back to Prompts</s-button>
             {message ? (
               <s-badge tone="success">{message}</s-badge>
             ) : (

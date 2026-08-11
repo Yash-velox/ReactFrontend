@@ -4,6 +4,7 @@ import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import ImageCompareDialog from "../components/ui/ImageCompareDialog";
 import MetricCard from "../components/ui/MetricCard";
+import OverflowMenu, { type OverflowMenuItem } from "../components/ui/OverflowMenu";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ProductPickerDialog from "../components/ui/ProductPickerDialog";
 import ReprocessPromptDialog, {
@@ -959,57 +960,79 @@ export default function JobsPage() {
                               <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
                                 {product.errorMessage ?? "—"}
                               </td>
-                              <td>
-                                <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
-                                  {canReprocessProduct(product) ? (
-                                    <s-button
-                                      onClick={() =>
-                                        void openReprocess({ scope: "product", productId: product.id })
-                                      }
-                                    >
-                                      Reprocess
-                                    </s-button>
-                                  ) : null}
-                                  {pub === "READY_TO_PUBLISH" && !autoPublishEnabled ? (
-                                    <s-button
-                                      variant="primary"
-                                      disabled={busy || Boolean(publishBusyId)}
-                                      onClick={() => void publishProduct(product.id)}
-                                    >
-                                      {busy ? "Queuing…" : "Publish to Shopify"}
-                                    </s-button>
-                                  ) : null}
-                                  {pub === "PUBLISH_FAILED" || pub === "RESTORE_FAILED" ? (
-                                    <s-button
-                                      disabled={busy}
-                                      onClick={() => void retryPublish(product.id)}
-                                    >
-                                      {busy ? "Queuing…" : "Retry Publish"}
-                                    </s-button>
-                                  ) : null}
-                                  {pub === "PUBLISH_CONFLICT" ? (
-                                    <s-button onClick={() => void reviewConflict(product.id)}>
-                                      Review Conflict
-                                    </s-button>
-                                  ) : null}
-                                  {pub === "PUBLISHED" && adminUrl ? (
-                                    <s-link href={adminUrl} target="_blank">
-                                      View Shopify Product
-                                    </s-link>
-                                  ) : null}
-                                  {pub === "PUBLISHED" && product.productId ? (
-                                    <s-button
-                                      onClick={() => navigateApp(`/products/${product.productId}/versions`)}
-                                    >
-                                      View Versions
-                                    </s-button>
-                                  ) : null}
-                                  {!canReprocessProduct(product) &&
-                                  !pub &&
-                                  product.status === "PROCESSING"
-                                    ? "—"
-                                    : null}
-                                </div>
+                              <td className="aone-col-actions">
+                                {(() => {
+                                  const canReprocess = canReprocessProduct(product);
+                                  const showPublish =
+                                    pub === "READY_TO_PUBLISH" && !autoPublishEnabled;
+                                  const showRetry =
+                                    pub === "PUBLISH_FAILED" || pub === "RESTORE_FAILED";
+                                  const showConflict = pub === "PUBLISH_CONFLICT";
+                                  const overflowItems: OverflowMenuItem[] = [];
+                                  if (canReprocess) {
+                                    overflowItems.push({
+                                      id: "reprocess",
+                                      label: "Reprocess",
+                                      onSelect: () =>
+                                        void openReprocess({
+                                          scope: "product",
+                                          productId: product.id,
+                                        }),
+                                    });
+                                  }
+                                  if (adminUrl) {
+                                    overflowItems.push({
+                                      id: "shopify",
+                                      label: "View Shopify Product",
+                                      href: adminUrl,
+                                      target: "_blank",
+                                    });
+                                  }
+                                  if (product.productId) {
+                                    overflowItems.push({
+                                      id: "versions",
+                                      label: "View Versions",
+                                      onSelect: () =>
+                                        navigateApp(`/products/${product.productId}/versions`),
+                                    });
+                                  }
+                                  const hasPrimary = showPublish || showRetry || showConflict;
+                                  if (!hasPrimary && overflowItems.length === 0) {
+                                    return "—";
+                                  }
+                                  return (
+                                    <div className="aone-step-actions">
+                                      {showPublish ? (
+                                        <s-button
+                                          variant="primary"
+                                          disabled={busy || Boolean(publishBusyId)}
+                                          onClick={() => void publishProduct(product.id)}
+                                        >
+                                          {busy ? "Queuing…" : "Publish to Shopify"}
+                                        </s-button>
+                                      ) : null}
+                                      {showRetry ? (
+                                        <s-button
+                                          disabled={busy}
+                                          onClick={() => void retryPublish(product.id)}
+                                        >
+                                          {busy ? "Queuing…" : "Retry Publish"}
+                                        </s-button>
+                                      ) : null}
+                                      {showConflict ? (
+                                        <s-button
+                                          onClick={() => void reviewConflict(product.id)}
+                                        >
+                                          Review Conflict
+                                        </s-button>
+                                      ) : null}
+                                      <OverflowMenu
+                                        label={`More actions for ${truncateGid(product.shopifyProductGid)}`}
+                                        items={overflowItems}
+                                      />
+                                    </div>
+                                  );
+                                })()}
                               </td>
                             </tr>
                           );
