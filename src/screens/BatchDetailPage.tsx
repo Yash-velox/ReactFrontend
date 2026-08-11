@@ -377,9 +377,11 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
     }
   };
 
+  // Always allow manual publish when products are ready. Auto-publish should not
+  // hide the escape hatch if products remain READY_TO_PUBLISH (setting flipped
+  // later, enqueue miss, etc.).
   const canPublishAll =
     Boolean(batch) &&
-    !autoPublishEnabled &&
     TERMINAL_BATCH_STATUSES.has(batch?.status ?? "") &&
     publishSummary.ready > 0;
 
@@ -519,6 +521,15 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
               </div>
             ) : null}
 
+            {autoPublishEnabled && publishSummary.ready > 0 ? (
+              <s-banner tone="warning" heading="Still waiting to publish">
+                <s-paragraph>
+                  Automatic publish is enabled in Settings, but {publishSummary.ready} product(s) are
+                  still Ready to Publish. Use Publish All or Publish to Shopify below.
+                </s-paragraph>
+              </s-banner>
+            ) : null}
+
             {publishSummary.restoreFailed > 0 ? (
               <s-banner tone="critical" heading="Restore failed">
                 <s-paragraph>
@@ -576,8 +587,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                         <td className="aone-col-actions">
                           {(() => {
                             const canReprocess = canReprocessProduct(product);
-                            const showPublish =
-                              pub === "READY_TO_PUBLISH" && !autoPublishEnabled;
+                            const showPublish = pub === "READY_TO_PUBLISH";
                             const showRetry =
                               pub === "PUBLISH_FAILED" || pub === "RESTORE_FAILED";
                             const showConflict = pub === "PUBLISH_CONFLICT";
