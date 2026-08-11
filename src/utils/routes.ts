@@ -19,7 +19,25 @@ export function appPath(path: string): string {
   return normalized;
 }
 
-/** Navigate within the embedded app using a correctly scoped path. */
+type AppNavigateFn = (to: string) => void;
+
+let registeredNavigate: AppNavigateFn | null = null;
+
+/**
+ * Wire React Router's navigate from the app shell (Shopify `app.tsx` or Vite `App.tsx`).
+ * Full `window.location.assign` inside Admin iframes can surface a blank page that only
+ * shows "200" (auth/session-token.data rendered as a document — shopify-app-js#3112).
+ */
+export function registerAppNavigate(fn: AppNavigateFn | null): void {
+  registeredNavigate = fn;
+}
+
+/** Navigate within the embedded app using client-side routing when available. */
 export function navigateApp(path: string): void {
-  window.location.assign(appPath(path));
+  const target = appPath(path);
+  if (registeredNavigate) {
+    registeredNavigate(target);
+    return;
+  }
+  window.location.assign(target);
 }
