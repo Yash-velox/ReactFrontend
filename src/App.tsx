@@ -3,6 +3,7 @@ import { NavMenu } from "@shopify/app-bridge-react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { AppErrorBoundary } from "./components/ui/AppErrorBoundary";
 import { AppBridgeProvider } from "./providers/AppBridgeProvider";
+import BatchDetailPage from "./screens/BatchDetailPage";
 import HomePage from "./screens/HomePage";
 import JobsPage from "./screens/JobsPage";
 import ProductsPage from "./screens/ProductsPage";
@@ -51,6 +52,7 @@ function AppRoutes() {
       <Route path="/products/versions" element={<ProductVersionsHubPage />} />
       <Route path="/products/:productId/versions" element={<ProductVersionsPage />} />
       <Route path="/jobs" element={<JobsPage />} />
+      <Route path="/jobs/:batchId" element={<BatchDetailPage />} />
       <Route path="/prompts" element={<PromptsPage />} />
       <Route path="/prompts/:productTypeId" element={<PromptConfigurationPage />} />
       <Route path="/settings" element={<SettingsPage />} />
@@ -60,6 +62,7 @@ function AppRoutes() {
       <Route path="/app/products/versions" element={<ProductVersionsHubPage />} />
       <Route path="/app/products/:productId/versions" element={<ProductVersionsPage />} />
       <Route path="/app/jobs" element={<JobsPage />} />
+      <Route path="/app/jobs/:batchId" element={<BatchDetailPage />} />
       <Route path="/app/prompts" element={<PromptsPage />} />
       <Route path="/app/prompts/:productTypeId" element={<PromptConfigurationPage />} />
       <Route path="/app/settings" element={<SettingsPage />} />
