@@ -10,7 +10,7 @@ export type ReprocessPromptStep = {
 };
 
 export type ReprocessPreview = {
-  scope: "batch" | "product" | "image";
+  scope: "batch" | "product" | "image" | "live";
   note?: string;
   steps: ReprocessPromptStep[];
   productCount?: number;
@@ -18,6 +18,7 @@ export type ReprocessPreview = {
   productTypes?: string[];
   productType?: string | null;
   oneTimeOverride?: boolean;
+  autoPublish?: boolean;
 };
 
 type EditableStep = {
@@ -33,6 +34,7 @@ type Props = {
   loading?: boolean;
   busy?: boolean;
   error?: string;
+  confirmLabel?: string;
   onConfirm: (steps: { name: string; promptTemplate: string }[]) => void;
   onCancel: () => void;
 };
@@ -44,6 +46,7 @@ export default function ReprocessPromptDialog({
   loading = false,
   busy = false,
   error = "",
+  confirmLabel = "Confirm reprocess",
   onConfirm,
   onCancel,
 }: Props) {
@@ -87,6 +90,14 @@ export default function ReprocessPromptDialog({
                 {preview.productTypes?.length
                   ? ` · types: ${preview.productTypes.join(", ")}`
                   : ""}
+              </s-text>
+            ) : null}
+
+            {preview?.scope === "live" ? (
+              <s-text>
+                Reprocessing {preview.imageCount ?? 0} selected live image
+                {(preview.imageCount ?? 0) === 1 ? "" : "s"}
+                {preview.autoPublish ? " · publishes automatically after processing" : ""}
               </s-text>
             ) : null}
 
@@ -147,7 +158,7 @@ export default function ReprocessPromptDialog({
               )
             }
           >
-            {busy ? "Queuing…" : "Confirm reprocess"}
+            {busy ? "Queuing…" : confirmLabel}
           </s-button>
         </div>
       </s-stack>

@@ -83,6 +83,10 @@ export const endpoints = {
     `${API_BASE_URL}/api/rollback-operations/${operationId}`,
   rollbackOperationRetry: (operationId: string) =>
     `${API_BASE_URL}/api/rollback-operations/${operationId}/retry`,
+  productLiveReprocessPreview: (productId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/live-reprocess/preview`,
+  productLiveReprocess: (productId: string) =>
+    `${API_BASE_URL}/api/products/${productId}/live-reprocess`,
 
   // Normalized per-image CDN versions (under product-level snapshots)
   productImageVersions: (productId: string) =>

@@ -171,9 +171,9 @@ export default function SettingsPage() {
         ) : (
           <s-stack direction="block" gap="base">
             <s-paragraph>
-              When enabled, successfully processed products will be published after every product in the
-              batch has finished processing. When disabled, you can review the processed images and
-              publish them manually from Jobs.
+              When enabled, each product is published to Shopify as soon as its processing finishes —
+              you do not wait for the rest of the batch. When disabled, you can review processed
+              images and publish them manually from Jobs.
             </s-paragraph>
             <label className="aone-checkbox-row">
               <input
