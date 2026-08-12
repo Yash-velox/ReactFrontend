@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { endpoints } from "../../services/url-schemas";
 import { useAuthenticatedFetch } from "../../services/useAuthenticatedFetch";
 import type { BatchImage } from "../../types/week2";
-import { formatWhen } from "../../utils/format";
 import StatusBadge from "./StatusBadge";
+import Timestamp from "./Timestamp";
 import { useModalOverlay } from "./useModalOverlay";
 
 type View = "before" | "after";
@@ -161,7 +161,7 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
           <div className="aone-stat">
             <span className="aone-stat-label">Completed</span>
             <span className="aone-stat-value">
-              {image.completedAt ? formatWhen(image.completedAt) : "—"}
+              <Timestamp value={image.completedAt} />
             </span>
           </div>
         </div>

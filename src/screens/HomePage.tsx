@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import GettingStartedStepper, {
+  type SetupStep,
+  type SetupStepStatus,
+} from "../components/ui/GettingStartedStepper";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import { getStatusConfig } from "../components/ui/StatusBadge";
 import { endpoints, tunnelBypassHeaders } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
+import type { PromptProductTypeListItem } from "../types/prompts";
 import type { Batch, SecondaryQueueSummary, SyncStatus } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
 
@@ -13,7 +18,18 @@ type DashboardData = {
   syncStatus: SyncStatus;
   secondarySummary: SecondaryQueueSummary;
   batches: Batch[];
+  hasEnabledPrompt: boolean;
+  hasPublishedVersions: boolean;
 };
+
+function stepStatuses(flags: boolean[]): SetupStepStatus[] {
+  const firstIncomplete = flags.findIndex((done) => !done);
+  return flags.map((done, index) => {
+    if (done) return "complete";
+    if (firstIncomplete === index) return "current";
+    return "upcoming";
+  });
+}
 
 export default function HomePage() {
   const authenticatedFetch = useAuthenticatedFetch();
@@ -55,10 +71,34 @@ export default function HomePage() {
       const syncStatus = await parseApiResponse<SyncStatus>(syncRes);
       const secondarySummary = await parseApiResponse<SecondaryQueueSummary>(secondaryRes);
       const batchesPayload = await parseApiResponse<{ items: Batch[] }>(batchesRes);
+
+      const [promptsResult, versionsResult] = await Promise.allSettled([
+        authenticatedFetch(`${endpoints.promptProductTypes}?page=1&pageSize=100`).then((res) =>
+          parseApiResponse<{ items: PromptProductTypeListItem[] }>(res),
+        ),
+        authenticatedFetch(`${endpoints.productsWithMediaVersions}?limit=1`).then((res) =>
+          parseApiResponse<{ items: unknown[]; count?: number }>(res),
+        ),
+      ]);
+
+      let hasEnabledPrompt = false;
+      let hasPublishedVersions = false;
+      if (promptsResult.status === "fulfilled") {
+        hasEnabledPrompt = (promptsResult.value.items ?? []).some(
+          (item) => item.status === "ENABLED" && item.enabledStepCount > 0,
+        );
+      }
+      if (versionsResult.status === "fulfilled") {
+        const versionsPayload = versionsResult.value;
+        hasPublishedVersions = (versionsPayload.items?.length ?? versionsPayload.count ?? 0) > 0;
+      }
+
       setData({
         syncStatus,
         secondarySummary,
         batches: batchesPayload.items ?? [],
+        hasEnabledPrompt,
+        hasPublishedVersions,
       });
       setError("");
     } catch (err) {
@@ -88,24 +128,85 @@ export default function HomePage() {
 
   const healthTone = health === "ok" ? "success" : health === "down" ? "critical" : "caution";
   const healthLabel =
-    health === "checking" ? "Checking…" : health === "ok" ? "Connected" : "Unreachable";
+    health === "checking" ? "Checking…" : health === "ok" ? "Online" : "Offline";
 
-  const activeBatches = data?.batches.filter((b) => b.status === "PROCESSING" || b.status === "QUEUED").length ?? 0;
+  const activeBatches =
+    data?.batches.filter((b) => b.status === "PROCESSING" || b.status === "QUEUED").length ?? 0;
   const completedImages =
     data?.batches.reduce((sum, b) => sum + b.completedProductCount, 0) ?? 0;
   const latestSync = data?.syncStatus.latestRun;
   const syncConfig = latestSync ? getStatusConfig(latestSync.status) : null;
 
+  const setupSteps: SetupStep[] = useMemo(() => {
+    const connected = health === "ok";
+    const synced = (data?.syncStatus.productCount ?? 0) > 0;
+    const promptsReady = Boolean(data?.hasEnabledPrompt);
+    const processed =
+      Boolean(data?.batches.some((b) => b.completedProductCount > 0 || b.status === "COMPLETED")) ||
+      Boolean(data?.batches.some((b) => b.status === "PROCESSING" || b.status === "QUEUED"));
+    const published = Boolean(data?.hasPublishedVersions);
+
+    const flags = [connected, synced, promptsReady, processed, published];
+    const statuses = stepStatuses(flags);
+
+    const defs: Omit<SetupStep, "status">[] = [
+      {
+        id: "connect",
+        label: "Connect",
+        hint: connected ? "Service online" : "Waiting for service",
+      },
+      {
+        id: "sync",
+        label: "Sync",
+        hint: "Import products",
+        href: "/products",
+      },
+      {
+        id: "prompts",
+        label: "Prompts",
+        hint: "Configure AI",
+        href: "/prompts",
+      },
+      {
+        id: "process",
+        label: "Process",
+        hint: "Run a job",
+        href: "/jobs",
+      },
+      {
+        id: "publish",
+        label: "Publish",
+        hint: "Send to Shopify",
+        href: "/jobs",
+      },
+    ];
+
+    return defs.map((def, index) => ({
+      ...def,
+      status: statuses[index] ?? "upcoming",
+      hint:
+        statuses[index] === "complete"
+          ? def.id === "connect"
+            ? "Service online"
+            : def.id === "sync"
+              ? "Catalog ready"
+              : def.id === "prompts"
+                ? "Prompts ready"
+                : def.id === "process"
+                  ? "Job started"
+                  : "Versions available"
+          : def.hint,
+    }));
+  }, [health, data]);
+
   return (
     <s-page heading="Dashboard">
-      <s-section heading="Overview">
-        <s-paragraph>
-          Monitor catalog sync, Secondary Queue intake, and image processing batches for your store.
-        </s-paragraph>
-        <s-stack direction="inline" gap="base">
-          <s-text>Backend</s-text>
+      <s-section heading="Getting started">
+        <div className="aone-stepper-status-row">
+          <s-text>Service</s-text>
           <s-badge tone={healthTone}>{healthLabel}</s-badge>
-        </s-stack>
+        </div>
+        <GettingStartedStepper steps={setupSteps} loading={loading && !data} />
         {error ? (
           <s-box padding="base" borderWidth="base" borderRadius="base">
             <s-text tone="critical">{error}</s-text>
@@ -136,10 +237,7 @@ export default function HomePage() {
               badgeTone={activeBatches ? "info" : "neutral"}
               badgeLabel={activeBatches ? "Processing" : "Idle"}
             />
-            <MetricCard
-              label="Products completed"
-              value={completedImages}
-            />
+            <MetricCard label="Products completed" value={completedImages} />
           </div>
         )}
       </s-section>

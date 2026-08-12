@@ -3,13 +3,22 @@ import { type BadgeTone, MetricToneBadge } from "./StatusBadge";
 type Props = {
   label: string;
   value: string | number;
+  /** Native tooltip for the value (e.g. full timestamp on hover). */
+  valueTitle?: string;
   /** Optional status badge paired with metric — never color-only value */
   badgeTone?: BadgeTone;
   badgeLabel?: string;
   loading?: boolean;
 };
 
-export default function MetricCard({ label, value, badgeTone, badgeLabel, loading }: Props) {
+export default function MetricCard({
+  label,
+  value,
+  valueTitle,
+  badgeTone,
+  badgeLabel,
+  loading,
+}: Props) {
   if (loading) {
     return (
       <div className="aone-metric" aria-hidden="true">
@@ -22,7 +31,9 @@ export default function MetricCard({ label, value, badgeTone, badgeLabel, loadin
   return (
     <div className="aone-metric">
       <p className="aone-metric-label">{label}</p>
-      <p className="aone-metric-value">{value}</p>
+      <p className="aone-metric-value" title={valueTitle}>
+        {value}
+      </p>
       {badgeTone && badgeLabel ? (
         <div className="aone-metric-footer">
           <MetricToneBadge tone={badgeTone} label={badgeLabel} />

@@ -24,9 +24,32 @@ type StorageSummary = {
   estimateOnly?: boolean;
   note?: string;
   totalVersions?: number;
+  originalVersionCount?: number;
+  generatedVersionCount?: number;
+  versionsMissingFileSizeCount?: number;
   totalRecordedFileSizeBytes?: number;
-  warnings?: Array<{ code: string; message: string; value?: number; valueMb?: number }>;
+  generatedVersionStorageBytes?: number;
+  warnings?: Array<{
+    code: string;
+    message: string;
+    value?: number;
+    valueMb?: number;
+    threshold?: number;
+    thresholdMb?: number;
+  }>;
 };
+
+function formatBytes(bytes: number | undefined): string {
+  if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) {
+    return "0 B";
+  }
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 1) {
+    return `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`;
+  }
+  const kb = bytes / 1024;
+  return `${kb.toFixed(kb >= 10 ? 0 : 1)} KB`;
+}
 
 export default function ProductVersionsHubPage() {
   const authenticatedFetch = useAuthenticatedFetch();
@@ -79,10 +102,21 @@ export default function ProductVersionsHubPage() {
         {storage?.warnings && storage.warnings.length > 0 ? (
           <s-banner tone="warning">
             <s-stack direction="block" gap="small">
-              <s-text type="strong">Storage usage warning (estimate)</s-text>
+              <s-text type="strong">Estimated version size (not Shopify plan storage)</s-text>
               <s-paragraph>
                 {storage.note ||
-                  "Totals are estimates from stored file-size metadata, not Shopify account usage. No versions are deleted automatically."}
+                  "This estimate uses only our stored file_size_bytes metadata. It is not Shopify account usage. No versions are deleted automatically."}
+              </s-paragraph>
+              <s-paragraph>
+                Recorded size: {formatBytes(storage.totalRecordedFileSizeBytes)}
+                {" · "}
+                Generated versions: {storage.generatedVersionCount ?? 0}
+                {" · "}
+                Original baselines: {storage.originalVersionCount ?? storage.totalVersions ?? 0}
+                {typeof storage.versionsMissingFileSizeCount === "number" &&
+                storage.versionsMissingFileSizeCount > 0
+                  ? ` · Missing size metadata: ${storage.versionsMissingFileSizeCount}`
+                  : null}
               </s-paragraph>
               {storage.warnings.map((w) => (
                 <s-paragraph key={w.code}>{w.message}</s-paragraph>

@@ -5,6 +5,7 @@ import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import StatusBadge from "../components/ui/StatusBadge";
+import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import { parseApiResponse } from "../utils/api";
@@ -605,7 +606,9 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                     <td>
                       <StatusBadge status={v.versionType} />
                     </td>
-                    <td>{v.createdAt ? new Date(v.createdAt).toLocaleString() : "—"}</td>
+                    <td>
+                      <Timestamp value={v.createdAt} />
+                    </td>
                     <td>{v.imageCount}</td>
                     <td>
                       {v.isActive ? (

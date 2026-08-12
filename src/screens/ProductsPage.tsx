@@ -8,8 +8,9 @@ import StatusBadge, { getStatusConfig } from "../components/ui/StatusBadge";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { SyncRun, SyncStatus } from "../types/week2";
+import Timestamp from "../components/ui/Timestamp";
 import { parseApiResponse } from "../utils/api";
-import { formatWhen } from "../utils/format";
+import { formatWhen, formatWhenFull } from "../utils/format";
 
 export default function ProductsPage() {
   const authenticatedFetch = useAuthenticatedFetch();
@@ -118,6 +119,11 @@ export default function ProductsPage() {
               <MetricCard
                 label="Latest run"
                 value={latest ? formatWhen(latest.completedAt ?? latest.startedAt) : "—"}
+                valueTitle={
+                  latest
+                    ? formatWhenFull(latest.completedAt ?? latest.startedAt) || undefined
+                    : undefined
+                }
                 badgeTone={latestConfig?.tone}
                 badgeLabel={latestConfig?.label}
               />
@@ -190,8 +196,12 @@ export default function ProductsPage() {
                   <td>{run.runType}</td>
                   <td>{run.productsSynced}</td>
                   <td>{run.mediaSynced}</td>
-                  <td>{formatWhen(run.startedAt)}</td>
-                  <td>{formatWhen(run.completedAt)}</td>
+                  <td>
+                    <Timestamp value={run.startedAt} />
+                  </td>
+                  <td>
+                    <Timestamp value={run.completedAt} />
+                  </td>
                   <td className="aone-table-cell-truncate" title={run.errorMessage ?? undefined}>
                     {run.errorMessage ?? "—"}
                   </td>

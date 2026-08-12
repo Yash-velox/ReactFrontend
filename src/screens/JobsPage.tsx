@@ -6,11 +6,12 @@ import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ProductPickerDialog from "../components/ui/ProductPickerDialog";
 import StatusBadge from "../components/ui/StatusBadge";
+import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, PaginationMeta, SecondaryQueueItem, SecondaryQueueSummary } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
-import { formatGid, formatWhen, truncateGid } from "../utils/format";
+import { formatGid, truncateGid } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 import { showAppToast } from "../utils/toast";
 
@@ -401,8 +402,12 @@ export default function JobsPage() {
                           </td>
                           <td>{item.queueRevision}</td>
                           <td>{item.webhookCount}</td>
-                          <td>{formatWhen(item.firstQueuedAt)}</td>
-                          <td>{formatWhen(item.lastQueuedAt)}</td>
+                          <td>
+                            <Timestamp value={item.firstQueuedAt} />
+                          </td>
+                          <td>
+                            <Timestamp value={item.lastQueuedAt} />
+                          </td>
                           <td>
                             <StatusBadge status={item.status} />
                           </td>
@@ -493,8 +498,12 @@ export default function JobsPage() {
                       <td>{batch.completedProductCount}</td>
                       <td>{batch.failedProductCount}</td>
                       <td>{batch.retryingProductCount}</td>
-                      <td>{formatWhen(batch.createdAt)}</td>
-                      <td>{formatWhen(batch.completedAt)}</td>
+                      <td>
+                        <Timestamp value={batch.createdAt} />
+                      </td>
+                      <td>
+                        <Timestamp value={batch.completedAt} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>

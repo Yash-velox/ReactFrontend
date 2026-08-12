@@ -10,11 +10,12 @@ import ReprocessPromptDialog, {
   type ReprocessPreview,
 } from "../components/ui/ReprocessPromptDialog";
 import StatusBadge from "../components/ui/StatusBadge";
+import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, BatchImage, BatchProduct } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
-import { formatWhen, truncateGid } from "../utils/format";
+import { truncateGid } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 
 type ReprocessTarget =
@@ -449,8 +450,13 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
               <StatusBadge status={batch.status} />
             </s-stack>
             <s-text tone="neutral">
-              Created {formatWhen(batch.createdAt)}
-              {batch.completedAt ? ` · Completed ${formatWhen(batch.completedAt)}` : ""}
+              Created <Timestamp value={batch.createdAt} />
+              {batch.completedAt ? (
+                <>
+                  {" "}
+                  · Completed <Timestamp value={batch.completedAt} />
+                </>
+              ) : null}
             </s-text>
             {batch.errorSummary ? (
               <s-text tone="critical">{batch.errorSummary}</s-text>

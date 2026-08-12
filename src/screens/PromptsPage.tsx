@@ -9,8 +9,8 @@ import { useModalOverlay } from "../components/ui/useModalOverlay";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { PromptListStatus, PromptProductTypeListItem } from "../types/prompts";
+import Timestamp from "../components/ui/Timestamp";
 import { parseApiResponse } from "../utils/api";
-import { formatWhen } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 
 const STATUS_FILTERS: { value: string; label: string }[] = [
@@ -270,7 +270,9 @@ export default function PromptsPage() {
                         <div className="aone-field-hint">All steps are disabled</div>
                       ) : null}
                     </td>
-                    <td>{formatWhen(item.updatedAt)}</td>
+                    <td>
+                      <Timestamp value={item.updatedAt} />
+                    </td>
                     <td>
                       <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
                         <s-button
