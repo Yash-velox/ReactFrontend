@@ -22,7 +22,7 @@ type PickerProduct = {
 };
 
 const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 7;
 const DEFAULT_MANUAL_BATCH_LIMIT = 2;
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -427,7 +427,7 @@ export default function JobsPage() {
                     <div className="aone-pagination">
                       <p className="aone-pagination-meta">
                         Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
-                        {secondaryPagination.totalItems} items
+                        {secondaryPagination.totalItems} items · {PAGE_SIZE} per page
                       </p>
                       <div className="aone-toolbar">
                         <s-button
@@ -516,7 +516,8 @@ export default function JobsPage() {
               {batchesPagination ? (
                 <div className="aone-pagination">
                   <p className="aone-pagination-meta">
-                    Page {batchesPagination.page} of {batchesPagination.totalPages || 1}
+                    Page {batchesPagination.page} of {batchesPagination.totalPages || 1} ·{" "}
+                    {batchesPagination.totalItems ?? batches.length} items · {PAGE_SIZE} per page
                   </p>
                   <div className="aone-toolbar">
                     <s-button
