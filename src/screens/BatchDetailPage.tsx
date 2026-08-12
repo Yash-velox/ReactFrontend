@@ -9,6 +9,7 @@ import PageSkeleton from "../components/ui/PageSkeleton";
 import ReprocessPromptDialog, {
   type ReprocessPreview,
 } from "../components/ui/ReprocessPromptDialog";
+import BatchStatusBadge from "../components/ui/BatchStatusBadge";
 import StatusBadge from "../components/ui/StatusBadge";
 import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
@@ -447,7 +448,10 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
             </s-text>
             <s-stack direction="inline" gap="small">
               <StatusBadge status={batch.triggerType} />
-              <StatusBadge status={batch.status} />
+              <BatchStatusBadge
+                status={batch.status}
+                processingPhase={batch.processingPhase}
+              />
             </s-stack>
             <s-text tone="neutral">
               Created <Timestamp value={batch.createdAt} />

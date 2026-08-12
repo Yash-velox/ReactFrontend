@@ -5,6 +5,7 @@ import ErrorBanner from "../components/ui/ErrorBanner";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ProductPickerDialog from "../components/ui/ProductPickerDialog";
+import BatchStatusBadge from "../components/ui/BatchStatusBadge";
 import StatusBadge from "../components/ui/StatusBadge";
 import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
@@ -490,7 +491,10 @@ export default function JobsPage() {
                       </td>
                       <td>
                         <div className="aone-batch-status-cell">
-                          <StatusBadge status={batch.status} />
+                          <BatchStatusBadge
+                            status={batch.status}
+                            processingPhase={batch.processingPhase}
+                          />
                         </div>
                       </td>
                       <td>{batch.productCount}</td>
