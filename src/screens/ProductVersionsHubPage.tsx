@@ -93,8 +93,8 @@ export default function ProductVersionsHubPage() {
     <s-page heading="Product Versions">
       <s-stack direction="block" gap="base">
         <s-paragraph>
-          Search products that have been published through this app, then open version history to
-          revert to a previous complete image set.
+          Search products that have been published through this app. Open a product to revert a
+          complete stored version, or reprocess selected live images.
         </s-paragraph>
 
         {error ? <ErrorBanner message={error} onRetry={() => void load()} /> : null}

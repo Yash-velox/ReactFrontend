@@ -4,6 +4,10 @@ import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import PageSkeleton from "../components/ui/PageSkeleton";
+import ReprocessPromptDialog, {
+  type ReprocessPreview,
+} from "../components/ui/ReprocessPromptDialog";
+import SelectLiveImagesDialog from "../components/ui/SelectLiveImagesDialog";
 import StatusBadge from "../components/ui/StatusBadge";
 import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
@@ -43,6 +47,7 @@ type LinkedImageVersion = {
   versionNumber: number;
   versionType: string;
   shopifyFileGid?: string | null;
+  shopifyMediaGid?: string | null;
   shopifyCdnUrl?: string | null;
   fileSizeBytes?: number | null;
   width?: number | null;
@@ -50,6 +55,16 @@ type LinkedImageVersion = {
   isCurrent?: boolean;
   isPublished?: boolean;
   isOriginal?: boolean;
+};
+
+type LiveMediaItem = {
+  mediaGid?: string | null;
+  fileGid?: string | null;
+  cdnUrl?: string | null;
+  filename?: string | null;
+  altText?: string | null;
+  position?: number | null;
+  isPrimary?: boolean | null;
 };
 
 type RollbackPreview = {
@@ -212,6 +227,16 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [forceConfirmChecked, setForceConfirmChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rollbackOp, setRollbackOp] = useState<RollbackOperation | null>(null);
+  const [liveMedia, setLiveMedia] = useState<LiveMediaItem[]>([]);
+  const [selectedLiveGids, setSelectedLiveGids] = useState<string[]>([]);
+  const [selectOpen, setSelectOpen] = useState(false);
+  const [reprocessOpen, setReprocessOpen] = useState(false);
+  const [reprocessPreview, setReprocessPreview] = useState<ReprocessPreview | null>(null);
+  const [reprocessLoading, setReprocessLoading] = useState(false);
+  const [reprocessBusy, setReprocessBusy] = useState(false);
+  const [reprocessError, setReprocessError] = useState("");
+  const [message, setMessage] = useState("");
+  const [queuedBatchId, setQueuedBatchId] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
   const conflictLines = useMemo(
@@ -224,9 +249,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     setLoading(true);
     try {
       const res = await authenticatedFetch(endpoints.productMediaVersions(productId));
-      const data = await parseApiResponse<{ items: MediaVersion[] }>(res);
+      const data = await parseApiResponse<{ items: MediaVersion[]; liveMedia?: LiveMediaItem[] }>(res);
       const list = data.items ?? [];
       setVersions(list);
+      setLiveMedia(data.liveMedia ?? []);
+      setSelectedLiveGids([]);
       const active = list.find((v) => v.isActive);
       if (active) {
         try {
@@ -351,47 +378,193 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     }
   };
 
-  const activeGeneratedImages = useMemo(() => {
-    const linked = activeDetail?.linkedImageVersions ?? [];
-    return linked.filter(
-      (iv) =>
-        String(iv.versionType || "").toUpperCase() === "GENERATED" ||
-        (iv.isOriginal === false && String(iv.versionType || "").toUpperCase() !== "ORIGINAL"),
-    );
-  }, [activeDetail?.linkedImageVersions]);
-
-  const activeSnapshotMedia = useMemo(() => {
-    // Prefer generated pipeline outputs when present (e.g. one AI image among a larger gallery).
-    if (activeGeneratedImages.length > 0) {
-      return activeGeneratedImages.map((iv) => ({
-        key: iv.versionId,
-        cdnUrl: iv.shopifyCdnUrl,
-        label: `${iv.versionType} v${iv.versionNumber}`,
-        title: `${iv.versionType} v${iv.versionNumber}`,
-        isOriginal: Boolean(iv.isOriginal),
-        fileSizeBytes: iv.fileSizeBytes,
-      }));
+  const liveTiles = useMemo(() => {
+    if (liveMedia.length > 0) {
+      return liveMedia
+        .slice()
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+        .map((m, idx) => ({
+          key: m.mediaGid || m.fileGid || `live-${idx}`,
+          mediaGid: m.mediaGid || m.fileGid || "",
+          cdnUrl: m.cdnUrl,
+          label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
+          title: m.filename || m.altText || `Image ${idx + 1}`,
+        }))
+        .filter((t) => t.mediaGid);
     }
-    // Fallback: product media version snapshot (full gallery for ORIGINAL-only versions).
     const media = activeDetail?.media ?? [];
     return media
       .slice()
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-      .map((m, idx) => {
+      .map((m, idx) => ({
+        key: m.mediaGid || m.fileGid || `snap-${idx}`,
+        mediaGid: m.mediaGid || m.fileGid || "",
+        cdnUrl: m.cdnUrl,
+        label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
+        title: m.filename || m.altText || `Image ${idx + 1}`,
+      }))
+      .filter((t) => t.mediaGid);
+  }, [liveMedia, activeDetail?.media]);
+
+  const toggleLiveImage = (mediaGid: string) => {
+    setSelectedLiveGids((prev) =>
+      prev.includes(mediaGid) ? prev.filter((id) => id !== mediaGid) : [...prev, mediaGid],
+    );
+  };
+
+  const continuingToPrompt = useRef(false);
+
+  const reprocessBlocked = busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status));
+
+  const closeReprocessDialog = () => {
+    setReprocessOpen(false);
+    setReprocessPreview(null);
+    setReprocessError("");
+    setReprocessLoading(false);
+    setReprocessBusy(false);
+  };
+
+  const abortReprocessFlow = () => {
+    if (continuingToPrompt.current) {
+      continuingToPrompt.current = false;
+      setSelectOpen(false);
+      return;
+    }
+    setSelectOpen(false);
+    closeReprocessDialog();
+    setSelectedLiveGids([]);
+  };
+
+  const openSelectDialog = () => {
+    if (reprocessBlocked || liveTiles.length === 0) return;
+    setMessage("");
+    setError("");
+    setSelectedLiveGids([]);
+    setSelectOpen(true);
+  };
+
+  const openLiveReprocess = async () => {
+    if (selectedLiveGids.length === 0) return;
+    continuingToPrompt.current = true;
+    setSelectOpen(false);
+    setReprocessPreview(null);
+    setReprocessError("");
+    setReprocessLoading(true);
+    setError("");
+    window.setTimeout(() => {
+      setReprocessOpen(true);
+      continuingToPrompt.current = false;
+    }, 360);
+    try {
+      const res = await authenticatedFetch(endpoints.productLiveReprocessPreview(productId));
+      const preview = await parseApiResponse<ReprocessPreview>(res);
+      setReprocessPreview({
+        ...preview,
+        scope: "live",
+        imageCount: selectedLiveGids.length,
+      });
+    } catch (err) {
+      setReprocessError(err instanceof Error ? err.message : "Failed to load prompt preview");
+    } finally {
+      setReprocessLoading(false);
+    }
+  };
+
+  const backToImageSelect = () => {
+    closeReprocessDialog();
+    window.setTimeout(() => setSelectOpen(true), 360);
+  };
+
+  const confirmLiveReprocess = async (steps: { name: string; promptTemplate: string }[]) => {
+    if (selectedLiveGids.length === 0) return;
+    setReprocessBusy(true);
+    setReprocessError("");
+    try {
+      const res = await authenticatedFetch(endpoints.productLiveReprocess(productId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaGids: selectedLiveGids, steps }),
+      });
+      const payload = await parseApiResponse<{ batchId?: string; imageCount?: number }>(res);
+      setMessage(
+        `Queued ${payload.imageCount ?? selectedLiveGids.length} live image(s) for reprocess. They will publish automatically when processing finishes. This apply cannot be undone — use Revert on a stored version to restore a complete previous image set.`,
+      );
+      setQueuedBatchId(payload.batchId ?? null);
+      closeReprocessDialog();
+      setSelectedLiveGids([]);
+      void loadVersions();
+    } catch (err) {
+      setReprocessError(err instanceof Error ? err.message : "Reprocess failed");
+    } finally {
+      setReprocessBusy(false);
+    }
+  };
+
+  const activeVersionNumber = useMemo(
+    () => versions.find((v) => v.isActive)?.versionNumber ?? null,
+    [versions],
+  );
+
+  const linkedByIdentity = useMemo(() => {
+    const linked = activeDetail?.linkedImageVersions ?? [];
+    const map = new Map<string, LinkedImageVersion>();
+    for (const iv of linked) {
+      for (const key of [iv.shopifyFileGid, iv.shopifyMediaGid, iv.sourceMediaGid]) {
+        if (key && !map.has(key)) map.set(key, iv);
+      }
+    }
+    return map;
+  }, [activeDetail?.linkedImageVersions]);
+
+  const activeSnapshotMedia = useMemo(() => {
+    const media = (activeDetail?.media ?? [])
+      .slice()
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+    if (media.length > 0) {
+      return media.map((m, idx) => {
+        const linked =
+          (m.fileGid ? linkedByIdentity.get(m.fileGid) : undefined) ||
+          (m.mediaGid ? linkedByIdentity.get(m.mediaGid) : undefined);
+        const isGenerated =
+          Boolean(linked) &&
+          (String(linked?.versionType || "").toUpperCase() === "GENERATED" ||
+            linked?.isOriginal === false);
         const fullName = m.filename || m.altText || `Image ${idx + 1}`;
         const shortName =
           fullName.length > 28 ? `${fullName.slice(0, 12)}…${fullName.slice(-10)}` : fullName;
         return {
           key: `${m.mediaGid || m.fileGid || idx}`,
-          cdnUrl: m.cdnUrl,
+          cdnUrl: m.cdnUrl || linked?.shopifyCdnUrl,
           label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
           title: fullName,
           subtitle: shortName,
-          isOriginal: false,
-          fileSizeBytes: null as number | null,
+          isGenerated,
+          isOriginal: Boolean(linked?.isOriginal) && !isGenerated,
+          fileSizeBytes: linked?.fileSizeBytes ?? null,
         };
       });
-  }, [activeDetail?.media, activeGeneratedImages]);
+    }
+
+    // Snapshot media missing: show linked generated files, still labeled as the product version.
+    const linked = activeDetail?.linkedImageVersions ?? [];
+    return linked
+      .filter(
+        (iv) =>
+          String(iv.versionType || "").toUpperCase() === "GENERATED" ||
+          (iv.isOriginal === false && String(iv.versionType || "").toUpperCase() !== "ORIGINAL"),
+      )
+      .map((iv, idx) => ({
+        key: iv.versionId,
+        cdnUrl: iv.shopifyCdnUrl,
+        label: `#${idx}`,
+        title: iv.shopifyFileGid || `Image ${idx + 1}`,
+        subtitle: undefined as string | undefined,
+        isGenerated: true,
+        isOriginal: false,
+        fileSizeBytes: iv.fileSizeBytes ?? null,
+      }));
+  }, [activeDetail?.media, activeDetail?.linkedImageVersions, linkedByIdentity]);
 
   const heading = useMemo(() => {
     const active = versions.find((v) => v.isActive);
@@ -425,6 +598,15 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         </div>
 
         {error ? <ErrorBanner message={error} onRetry={() => void loadVersions()} /> : null}
+
+        {message ? (
+          <s-banner tone="success" heading="Live reprocess queued">
+            <s-paragraph>{message}</s-paragraph>
+            {queuedBatchId ? (
+              <s-button onClick={() => navigateApp(`/jobs/${queuedBatchId}`)}>View job</s-button>
+            ) : null}
+          </s-banner>
+        ) : null}
 
         {rollbackOp ? (
           <div
@@ -541,11 +723,9 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         ) : null}
 
         {activeSnapshotMedia.length > 0 ? (
-          <s-section heading="Active snapshot">
+          <s-section heading={activeVersionNumber != null ? `Active snapshot · v${activeVersionNumber}` : "Active snapshot"}>
             <s-paragraph>
-              {activeGeneratedImages.length > 0
-                ? `Generated image file${activeGeneratedImages.length === 1 ? "" : "s"} in the active version (${activeGeneratedImages.length}).`
-                : `Images in the active product version (${activeSnapshotMedia.length}).`}
+              {`Images in the active product version${activeVersionNumber != null ? ` v${activeVersionNumber}` : ""} (${activeSnapshotMedia.length}).`}
             </s-paragraph>
             <div className="aone-media-grid aone-media-grid-lg">
               {activeSnapshotMedia.map((tile) => (
@@ -561,11 +741,12 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                   )}
                   <figcaption className="aone-media-tile-caption">
                     <span className="aone-media-tile-type">{tile.label}</span>
-                    {"subtitle" in tile && tile.subtitle ? (
+                    {tile.subtitle ? (
                       <span className="aone-media-tile-filename" title={tile.title}>
                         {tile.subtitle}
                       </span>
                     ) : null}
+                    {tile.isGenerated ? <span className="aone-phase-chip">Generated</span> : null}
                     {tile.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
                     {typeof tile.fileSizeBytes === "number" ? (
                       <span className="aone-field-hint">{Math.round(tile.fileSizeBytes / 1024)} KB</span>
@@ -578,6 +759,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         ) : null}
 
         <s-section heading="Version history">
+          <s-paragraph>
+            Reprocess opens a modal to pick live images, then a prompt editor. Apply publishes those
+            images automatically and cannot be undone on its own. Revert restores every image in a
+            stored version (v1, v2, v3, …). Historical versions are never deleted.
+          </s-paragraph>
           {loading ? (
             <PageSkeleton />
           ) : versions.length === 0 ? (
@@ -618,20 +804,27 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                       )}
                     </td>
                     <td>
-                      {v.isActive ? (
-                        <span className="aone-field-hint">Current</span>
-                      ) : v.rollbackEligible ? (
+                      <div className="aone-table-actions">
                         <s-button
-                          disabled={busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))}
-                          onClick={() => void openPreview(v.versionId)}
+                          variant={v.isActive ? "primary" : undefined}
+                          disabled={reprocessBlocked || liveTiles.length === 0}
+                          onClick={openSelectDialog}
                         >
-                          Revert
+                          Reprocess
                         </s-button>
-                      ) : (
-                        <span className="aone-field-hint" title={v.unavailableReason || undefined}>
-                          {v.unavailableReason || "Unavailable"}
-                        </span>
-                      )}
+                        {v.isActive ? null : v.rollbackEligible ? (
+                          <s-button
+                            disabled={reprocessBlocked}
+                            onClick={() => void openPreview(v.versionId)}
+                          >
+                            Revert
+                          </s-button>
+                        ) : (
+                          <span className="aone-field-hint" title={v.unavailableReason || undefined}>
+                            {v.unavailableReason || "Unavailable"}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -640,6 +833,31 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           )}
         </s-section>
       </div>
+
+      <SelectLiveImagesDialog
+        open={selectOpen}
+        images={liveTiles}
+        selectedGids={selectedLiveGids}
+        busy={reprocessBusy}
+        onToggle={toggleLiveImage}
+        onSelectAll={() => setSelectedLiveGids(liveTiles.map((t) => t.mediaGid))}
+        onClear={() => setSelectedLiveGids([])}
+        onContinue={() => void openLiveReprocess()}
+        onCancel={abortReprocessFlow}
+      />
+
+      <ReprocessPromptDialog
+        open={reprocessOpen}
+        title="Edit prompt"
+        preview={reprocessPreview}
+        loading={reprocessLoading}
+        busy={reprocessBusy}
+        error={reprocessError}
+        confirmLabel="Apply"
+        cancelLabel="Back"
+        onConfirm={(steps) => void confirmLiveReprocess(steps)}
+        onCancel={backToImageSelect}
+      />
 
       <ConfirmDialog
         open={Boolean(preview && previewVersionId)}
