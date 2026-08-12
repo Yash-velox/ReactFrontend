@@ -47,6 +47,7 @@ type LinkedImageVersion = {
   versionNumber: number;
   versionType: string;
   shopifyFileGid?: string | null;
+  shopifyMediaGid?: string | null;
   shopifyCdnUrl?: string | null;
   fileSizeBytes?: number | null;
   width?: number | null;
@@ -499,48 +500,71 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     }
   };
 
-  const activeGeneratedImages = useMemo(() => {
+  const activeVersionNumber = useMemo(
+    () => versions.find((v) => v.isActive)?.versionNumber ?? null,
+    [versions],
+  );
+
+  const linkedByIdentity = useMemo(() => {
     const linked = activeDetail?.linkedImageVersions ?? [];
-    return linked.filter(
-      (iv) =>
-        String(iv.versionType || "").toUpperCase() === "GENERATED" ||
-        (iv.isOriginal === false && String(iv.versionType || "").toUpperCase() !== "ORIGINAL"),
-    );
+    const map = new Map<string, LinkedImageVersion>();
+    for (const iv of linked) {
+      for (const key of [iv.shopifyFileGid, iv.shopifyMediaGid, iv.sourceMediaGid]) {
+        if (key && !map.has(key)) map.set(key, iv);
+      }
+    }
+    return map;
   }, [activeDetail?.linkedImageVersions]);
 
   const activeSnapshotMedia = useMemo(() => {
-    // Prefer generated pipeline outputs when present (e.g. one AI image among a larger gallery).
-    if (activeGeneratedImages.length > 0) {
-      return activeGeneratedImages.map((iv) => ({
-        key: iv.versionId,
-        cdnUrl: iv.shopifyCdnUrl,
-        label: `${iv.versionType} v${iv.versionNumber}`,
-        title: `${iv.versionType} v${iv.versionNumber}`,
-        subtitle: undefined as string | undefined,
-        isOriginal: Boolean(iv.isOriginal),
-        fileSizeBytes: iv.fileSizeBytes,
-      }));
-    }
-    // Fallback: product media version snapshot (full gallery for ORIGINAL-only versions).
-    const media = activeDetail?.media ?? [];
-    return media
+    const media = (activeDetail?.media ?? [])
       .slice()
-      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-      .map((m, idx) => {
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+    if (media.length > 0) {
+      return media.map((m, idx) => {
+        const linked =
+          (m.fileGid ? linkedByIdentity.get(m.fileGid) : undefined) ||
+          (m.mediaGid ? linkedByIdentity.get(m.mediaGid) : undefined);
+        const isGenerated =
+          Boolean(linked) &&
+          (String(linked?.versionType || "").toUpperCase() === "GENERATED" ||
+            linked?.isOriginal === false);
         const fullName = m.filename || m.altText || `Image ${idx + 1}`;
         const shortName =
           fullName.length > 28 ? `${fullName.slice(0, 12)}…${fullName.slice(-10)}` : fullName;
         return {
           key: `${m.mediaGid || m.fileGid || idx}`,
-          cdnUrl: m.cdnUrl,
+          cdnUrl: m.cdnUrl || linked?.shopifyCdnUrl,
           label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
           title: fullName,
           subtitle: shortName,
-          isOriginal: false,
-          fileSizeBytes: null as number | null,
+          isGenerated,
+          isOriginal: Boolean(linked?.isOriginal) && !isGenerated,
+          fileSizeBytes: linked?.fileSizeBytes ?? null,
         };
       });
-  }, [activeDetail?.media, activeGeneratedImages]);
+    }
+
+    // Snapshot media missing: show linked generated files, still labeled as the product version.
+    const linked = activeDetail?.linkedImageVersions ?? [];
+    return linked
+      .filter(
+        (iv) =>
+          String(iv.versionType || "").toUpperCase() === "GENERATED" ||
+          (iv.isOriginal === false && String(iv.versionType || "").toUpperCase() !== "ORIGINAL"),
+      )
+      .map((iv, idx) => ({
+        key: iv.versionId,
+        cdnUrl: iv.shopifyCdnUrl,
+        label: `#${idx}`,
+        title: iv.shopifyFileGid || `Image ${idx + 1}`,
+        subtitle: undefined as string | undefined,
+        isGenerated: true,
+        isOriginal: false,
+        fileSizeBytes: iv.fileSizeBytes ?? null,
+      }));
+  }, [activeDetail?.media, activeDetail?.linkedImageVersions, linkedByIdentity]);
 
   const heading = useMemo(() => {
     const active = versions.find((v) => v.isActive);
@@ -699,11 +723,9 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         ) : null}
 
         {activeSnapshotMedia.length > 0 ? (
-          <s-section heading="Active snapshot">
+          <s-section heading={activeVersionNumber != null ? `Active snapshot · v${activeVersionNumber}` : "Active snapshot"}>
             <s-paragraph>
-              {activeGeneratedImages.length > 0
-                ? `Generated image file${activeGeneratedImages.length === 1 ? "" : "s"} in the active version (${activeGeneratedImages.length}).`
-                : `Images in the active product version (${activeSnapshotMedia.length}).`}
+              {`Images in the active product version${activeVersionNumber != null ? ` v${activeVersionNumber}` : ""} (${activeSnapshotMedia.length}).`}
             </s-paragraph>
             <div className="aone-media-grid aone-media-grid-lg">
               {activeSnapshotMedia.map((tile) => (
@@ -724,6 +746,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                         {tile.subtitle}
                       </span>
                     ) : null}
+                    {tile.isGenerated ? <span className="aone-phase-chip">Generated</span> : null}
                     {tile.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
                     {typeof tile.fileSizeBytes === "number" ? (
                       <span className="aone-field-hint">{Math.round(tile.fileSizeBytes / 1024)} KB</span>
