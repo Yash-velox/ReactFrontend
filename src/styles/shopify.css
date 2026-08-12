@@ -1330,6 +1330,19 @@ a.aone-overflow-item:visited {
   grid-template-columns: repeat(auto-fill, minmax(117px, 1fr));
 }
 
+.aone-modal-media-grid {
+  max-height: min(50vh, 360px);
+  overflow: auto;
+  padding: 2px;
+}
+
+.aone-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .aone-media-tile {
   margin: 0;
   display: flex;

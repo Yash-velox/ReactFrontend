@@ -35,6 +35,7 @@ type Props = {
   busy?: boolean;
   error?: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   onConfirm: (steps: { name: string; promptTemplate: string }[]) => void;
   onCancel: () => void;
 };
@@ -47,6 +48,7 @@ export default function ReprocessPromptDialog({
   busy = false,
   error = "",
   confirmLabel = "Confirm reprocess",
+  cancelLabel = "Cancel",
   onConfirm,
   onCancel,
 }: Props) {
@@ -144,7 +146,7 @@ export default function ReprocessPromptDialog({
 
         <div className="aone-toolbar">
           <s-button onClick={dismiss} disabled={busy}>
-            Cancel
+            {cancelLabel}
           </s-button>
           <s-button
             variant="primary"

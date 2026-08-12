@@ -7,6 +7,7 @@ import PageSkeleton from "../components/ui/PageSkeleton";
 import ReprocessPromptDialog, {
   type ReprocessPreview,
 } from "../components/ui/ReprocessPromptDialog";
+import SelectLiveImagesDialog from "../components/ui/SelectLiveImagesDialog";
 import StatusBadge from "../components/ui/StatusBadge";
 import Timestamp from "../components/ui/Timestamp";
 import { endpoints } from "../services/url-schemas";
@@ -227,6 +228,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [rollbackOp, setRollbackOp] = useState<RollbackOperation | null>(null);
   const [liveMedia, setLiveMedia] = useState<LiveMediaItem[]>([]);
   const [selectedLiveGids, setSelectedLiveGids] = useState<string[]>([]);
+  const [selectOpen, setSelectOpen] = useState(false);
   const [reprocessOpen, setReprocessOpen] = useState(false);
   const [reprocessPreview, setReprocessPreview] = useState<ReprocessPreview | null>(null);
   const [reprocessLoading, setReprocessLoading] = useState(false);
@@ -409,6 +411,10 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     );
   };
 
+  const continuingToPrompt = useRef(false);
+
+  const reprocessBlocked = busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status));
+
   const closeReprocessDialog = () => {
     setReprocessOpen(false);
     setReprocessPreview(null);
@@ -417,13 +423,37 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     setReprocessBusy(false);
   };
 
+  const abortReprocessFlow = () => {
+    if (continuingToPrompt.current) {
+      continuingToPrompt.current = false;
+      setSelectOpen(false);
+      return;
+    }
+    setSelectOpen(false);
+    closeReprocessDialog();
+    setSelectedLiveGids([]);
+  };
+
+  const openSelectDialog = () => {
+    if (reprocessBlocked || liveTiles.length === 0) return;
+    setMessage("");
+    setError("");
+    setSelectedLiveGids([]);
+    setSelectOpen(true);
+  };
+
   const openLiveReprocess = async () => {
     if (selectedLiveGids.length === 0) return;
-    setReprocessOpen(true);
+    continuingToPrompt.current = true;
+    setSelectOpen(false);
     setReprocessPreview(null);
     setReprocessError("");
     setReprocessLoading(true);
     setError("");
+    window.setTimeout(() => {
+      setReprocessOpen(true);
+      continuingToPrompt.current = false;
+    }, 360);
     try {
       const res = await authenticatedFetch(endpoints.productLiveReprocessPreview(productId));
       const preview = await parseApiResponse<ReprocessPreview>(res);
@@ -437,6 +467,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     } finally {
       setReprocessLoading(false);
     }
+  };
+
+  const backToImageSelect = () => {
+    closeReprocessDialog();
+    window.setTimeout(() => setSelectOpen(true), 360);
   };
 
   const confirmLiveReprocess = async (steps: { name: string; promptTemplate: string }[]) => {
@@ -548,85 +583,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
             ) : null}
           </s-banner>
         ) : null}
-
-        <s-section heading="Live images">
-          <s-paragraph>
-            Select images that are currently live on Shopify, edit the prompt, then Apply. Processing
-            publishes those images automatically. That apply cannot be undone on its own — use Revert
-            below to restore a complete stored version (v1, v2, …). All versions are kept.
-          </s-paragraph>
-          {liveTiles.length === 0 ? (
-            <EmptyState
-              title="No live images"
-              description="This product has no visible live images to reprocess."
-            />
-          ) : (
-            <>
-              <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
-                <s-button
-                  onClick={() => setSelectedLiveGids(liveTiles.map((t) => t.mediaGid))}
-                  disabled={busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))}
-                >
-                  Select all
-                </s-button>
-                <s-button
-                  onClick={() => setSelectedLiveGids([])}
-                  disabled={selectedLiveGids.length === 0}
-                >
-                  Clear
-                </s-button>
-                <s-button
-                  variant="primary"
-                  disabled={
-                    selectedLiveGids.length === 0 ||
-                    busy ||
-                    Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))
-                  }
-                  onClick={() => void openLiveReprocess()}
-                >
-                  Reprocess selected ({selectedLiveGids.length})
-                </s-button>
-              </div>
-              <div className="aone-media-grid aone-media-grid-lg">
-                {liveTiles.map((tile) => {
-                  const selected = selectedLiveGids.includes(tile.mediaGid);
-                  return (
-                    <figure
-                      key={tile.key}
-                      className={`aone-media-tile is-selectable${selected ? " is-selected" : ""}`}
-                      title={tile.title}
-                      onClick={() => toggleLiveImage(tile.mediaGid)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleLiveImage(tile.mediaGid);
-                        }
-                      }}
-                      role="checkbox"
-                      aria-checked={selected}
-                      tabIndex={0}
-                    >
-                      <span className="aone-media-tile-check" aria-hidden="true">
-                        <input type="checkbox" checked={selected} readOnly tabIndex={-1} />
-                      </span>
-                      {tile.cdnUrl ? (
-                        <img src={tile.cdnUrl} alt={tile.title} className="aone-media-tile-img" />
-                      ) : (
-                        <div className="aone-media-tile-fallback">No preview</div>
-                      )}
-                      <figcaption className="aone-media-tile-caption">
-                        <span className="aone-media-tile-type">{tile.label}</span>
-                        <span className="aone-media-tile-filename" title={tile.title}>
-                          {tile.title}
-                        </span>
-                      </figcaption>
-                    </figure>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </s-section>
 
         {rollbackOp ? (
           <div
@@ -779,10 +735,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </s-section>
         ) : null}
 
-        <s-section heading="Version history — revert complete set">
+        <s-section heading="Version history">
           <s-paragraph>
-            Revert restores every image in a stored version (v1, v2, v3, …). Historical versions are
-            never deleted.
+            Reprocess opens a modal to pick live images, then a prompt editor. Apply publishes those
+            images automatically and cannot be undone on its own. Revert restores every image in a
+            stored version (v1, v2, v3, …). Historical versions are never deleted.
           </s-paragraph>
           {loading ? (
             <PageSkeleton />
@@ -824,20 +781,27 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                       )}
                     </td>
                     <td>
-                      {v.isActive ? (
-                        <span className="aone-field-hint">Current</span>
-                      ) : v.rollbackEligible ? (
+                      <div className="aone-table-actions">
                         <s-button
-                          disabled={busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))}
-                          onClick={() => void openPreview(v.versionId)}
+                          variant={v.isActive ? "primary" : undefined}
+                          disabled={reprocessBlocked || liveTiles.length === 0}
+                          onClick={openSelectDialog}
                         >
-                          Revert
+                          Reprocess
                         </s-button>
-                      ) : (
-                        <span className="aone-field-hint" title={v.unavailableReason || undefined}>
-                          {v.unavailableReason || "Unavailable"}
-                        </span>
-                      )}
+                        {v.isActive ? null : v.rollbackEligible ? (
+                          <s-button
+                            disabled={reprocessBlocked}
+                            onClick={() => void openPreview(v.versionId)}
+                          >
+                            Revert
+                          </s-button>
+                        ) : (
+                          <span className="aone-field-hint" title={v.unavailableReason || undefined}>
+                            {v.unavailableReason || "Unavailable"}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -847,16 +811,29 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         </s-section>
       </div>
 
+      <SelectLiveImagesDialog
+        open={selectOpen}
+        images={liveTiles}
+        selectedGids={selectedLiveGids}
+        busy={reprocessBusy}
+        onToggle={toggleLiveImage}
+        onSelectAll={() => setSelectedLiveGids(liveTiles.map((t) => t.mediaGid))}
+        onClear={() => setSelectedLiveGids([])}
+        onContinue={() => void openLiveReprocess()}
+        onCancel={abortReprocessFlow}
+      />
+
       <ReprocessPromptDialog
         open={reprocessOpen}
-        title="Reprocess live images"
+        title="Edit prompt"
         preview={reprocessPreview}
         loading={reprocessLoading}
         busy={reprocessBusy}
         error={reprocessError}
         confirmLabel="Apply"
+        cancelLabel="Back"
         onConfirm={(steps) => void confirmLiveReprocess(steps)}
-        onCancel={closeReprocessDialog}
+        onCancel={backToImageSelect}
       />
 
       <ConfirmDialog
