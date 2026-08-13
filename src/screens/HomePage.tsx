@@ -200,7 +200,7 @@ export default function HomePage() {
   }, [health, data]);
 
   return (
-    <s-page heading="Dashboard">
+    <s-page inline-size="large" heading="Dashboard">
       <s-section heading="Getting started">
         <div className="aone-stepper-status-row">
           <s-text>Service</s-text>

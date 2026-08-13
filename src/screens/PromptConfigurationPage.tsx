@@ -4,12 +4,14 @@ import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import PageSkeleton from "../components/ui/PageSkeleton";
+import RowDetailDialog, { detailText } from "../components/ui/RowDetailDialog";
 import StatusBadge from "../components/ui/StatusBadge";
 import { useModalOverlay } from "../components/ui/useModalOverlay";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { PromptConfigurationDetail, PromptStep } from "../types/prompts";
 import { parseApiResponse } from "../utils/api";
+import { formatWhenFull } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 
 const MAX_NAME = 150;
@@ -53,6 +55,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"success" | "critical">("success");
   const [detail, setDetail] = useState<PromptConfigurationDetail | null>(null);
 
   const [stepModalOpen, setStepModalOpen] = useState(false);
@@ -60,15 +63,22 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const [form, setForm] = useState<StepFormState>(emptyForm());
   const [formError, setFormError] = useState("");
   const [deleteStep, setDeleteStep] = useState<PromptStep | null>(null);
+  const [detailStep, setDetailStep] = useState<PromptStep | null>(null);
+  const [deleteProductTypeOpen, setDeleteProductTypeOpen] = useState(false);
+  const [deletingProductType, setDeletingProductType] = useState(false);
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
   const [menuStepId, setMenuStepId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  const stepModal = useModalOverlay(stepModalOpen, () => {
-    if (!saving) setStepModalOpen(false);
-  });
+  const stepModal = useModalOverlay(
+    stepModalOpen,
+    () => {
+      if (!saving) setStepModalOpen(false);
+    },
+    { closeOnOutsideClick: false },
+  );
 
   const closeStepMenu = useCallback(() => {
     setMenuStepId(null);
@@ -156,12 +166,33 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           body: JSON.stringify({ isEnabled }),
         }),
       );
-      setMessage(`Configuration ${isEnabled ? "enabled" : "disabled"}.`);
+      setMessageTone(isEnabled ? "success" : "critical");
+      setMessage(isEnabled ? "Enabled" : "Disabled");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update configuration");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const confirmDeleteProductType = async () => {
+    if (!detail) return;
+    setDeletingProductType(true);
+    setError("");
+    try {
+      await parseApiResponse(
+        await authenticatedFetch(endpoints.promptProductType(detail.productTypeId), {
+          method: "DELETE",
+        }),
+      );
+      setDeleteProductTypeOpen(false);
+      navigateApp("/prompts");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete product type");
+      setDeleteProductTypeOpen(false);
+    } finally {
+      setDeletingProductType(false);
     }
   };
 
@@ -222,6 +253,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
             }),
           }),
         );
+        setMessageTone("success");
         setMessage("Prompt step updated.");
       } else {
         await parseApiResponse(
@@ -234,6 +266,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
             }),
           }),
         );
+        setMessageTone("success");
         setMessage("Prompt step added.");
       }
       setStepModalOpen(false);
@@ -298,6 +331,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
       await parseApiResponse(
         await authenticatedFetch(endpoints.promptStep(deleteStep.id), { method: "DELETE" }),
       );
+      setMessageTone("success");
       setMessage("Prompt step deleted.");
       setDeleteStep(null);
       await load();
@@ -311,7 +345,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
 
   if (loading && !detail) {
     return (
-      <s-page heading="Prompt Configuration">
+      <s-page inline-size="large" heading="Prompt Configuration">
         <PageSkeleton />
       </s-page>
     );
@@ -319,7 +353,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
 
   if (!detail) {
     return (
-      <s-page heading="Prompt Configuration">
+      <s-page inline-size="large" heading="Prompt Configuration">
         <s-section>
           <ErrorBanner message={error || "Configuration not found"} />
           <div className="aone-toolbar" style={{ marginTop: "0.75rem" }}>
@@ -332,9 +366,15 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
 
   const steps = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
   const isCentral = Boolean(detail.isCentral) || detail.source === "SYSTEM";
+  const canDeleteProductType = detail.source === "MANUAL" && !isCentral;
+  const isEditDirty =
+    !editingStep ||
+    form.name !== editingStep.name ||
+    form.promptText !== editingStep.promptText ||
+    form.isEnabled !== editingStep.isEnabled;
 
   return (
-    <s-page heading={isCentral ? "Central Prompt" : "Prompt Configuration"}>
+    <s-page inline-size="large" heading={isCentral ? "Central Prompt" : "Prompt Configuration"}>
       {error ? (
         <s-section>
           <ErrorBanner message={error} onRetry={() => void load()} />
@@ -346,7 +386,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           <div className="aone-config-nav">
             <s-button onClick={() => navigateApp("/prompts")}>← Back to Prompts</s-button>
             {message ? (
-              <s-badge tone="success">{message}</s-badge>
+              <s-badge tone={messageTone}>{message}</s-badge>
             ) : (
               <span className="aone-field-hint">{saving ? "Saving…" : ""}</span>
             )}
@@ -369,16 +409,40 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               <div className="aone-config-meta-label">Total Steps</div>
               <div className="aone-config-meta-value">{detail.stepCount}</div>
             </div>
-            {!isCentral ? (
-              <label className="aone-config-toggle">
-                <input
-                  type="checkbox"
-                  checked={detail.isEnabled}
-                  disabled={saving}
-                  onChange={(e) => void setConfigEnabled(e.target.checked)}
-                />
-                <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
-              </label>
+            {!isCentral || canDeleteProductType ? (
+              <div className="aone-config-actions">
+                {!isCentral ? (
+                  <label className="aone-config-toggle">
+                    <input
+                      type="checkbox"
+                      checked={detail.isEnabled}
+                      disabled={saving || deletingProductType}
+                      onChange={(e) => void setConfigEnabled(e.target.checked)}
+                    />
+                    <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
+                  </label>
+                ) : null}
+                {canDeleteProductType ? (
+                  <button
+                    type="button"
+                    className="aone-config-delete-btn"
+                    title="Delete product type"
+                    aria-label={`Delete product type ${detail.name}`}
+                    disabled={saving || deletingProductType}
+                    onClick={() => setDeleteProductTypeOpen(true)}
+                  >
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path
+                        d="M7.5 3.5h5M4.5 5.5h11M8.5 8v5.5M11.5 8v5.5M6.5 5.5l.6 9.2a1.5 1.5 0 0 0 1.5 1.4h3.8a1.5 1.5 0 0 0 1.5-1.4l.6-9.2"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                ) : null}
+              </div>
             ) : null}
           </div>
 
@@ -409,7 +473,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                   <th className="aone-col-order">Order</th>
                   <th>Step Name</th>
                   <th>Prompt Preview</th>
-                  <th>Variables</th>
                   <th className="aone-col-status">Status</th>
                   <th className="aone-col-actions">Actions</th>
                 </tr>
@@ -423,11 +486,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                     </td>
                     <td className="aone-col-preview" title={step.promptText}>
                       {truncate(step.promptText, 100)}
-                    </td>
-                    <td className="aone-col-variables">
-                      {step.variables.length
-                        ? step.variables.map((v) => `{{${v}}}`).join(", ")
-                        : "—"}
                     </td>
                     <td className="aone-col-status">
                       <StatusBadge status={step.isEnabled ? "ENABLED" : "DISABLED"} />
@@ -592,7 +650,11 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               <s-button onClick={stepModal.dismiss} disabled={saving}>
                 Cancel
               </s-button>
-              <s-button variant="primary" onClick={() => void saveStep()} disabled={saving}>
+              <s-button
+                variant="primary"
+                onClick={() => void saveStep()}
+                disabled={saving || (Boolean(editingStep) && !isEditDirty)}
+              >
                 {saving ? "Saving…" : "Save"}
               </s-button>
             </div>
@@ -613,6 +675,42 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
         busy={busyStepId === deleteStep?.id}
         onConfirm={() => void confirmDeleteStep()}
         onCancel={() => setDeleteStep(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteProductTypeOpen}
+        title="Delete product type?"
+        message={`Delete "${detail.name}" and its saved prompt configuration and steps? Shopify products are not modified.`}
+        confirmLabel="Delete"
+        tone="critical"
+        busy={deletingProductType}
+        onConfirm={() => void confirmDeleteProductType()}
+        onCancel={() => setDeleteProductTypeOpen(false)}
+      />
+
+      <RowDetailDialog
+        open={Boolean(detailStep)}
+        title="Prompt step details"
+        onClose={() => setDetailStep(null)}
+        fields={
+          detailStep
+            ? [
+                { label: "Order", value: detailStep.stepOrder },
+                { label: "Step name", value: detailStep.name },
+                { label: "Status", value: detailStep.isEnabled ? "ENABLED" : "DISABLED" },
+                {
+                  label: "Variables",
+                  value: detailStep.variables.length
+                    ? detailStep.variables.map((v) => `{{${v}}}`).join(", ")
+                    : "—",
+                },
+                { label: "Prompt text", value: detailStep.promptText },
+                { label: "Created", value: detailText(formatWhenFull(detailStep.createdAt)) },
+                { label: "Updated", value: detailText(formatWhenFull(detailStep.updatedAt)) },
+                { label: "Step ID", value: detailStep.id },
+              ]
+            : []
+        }
       />
     </s-page>
   );

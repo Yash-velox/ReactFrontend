@@ -77,7 +77,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <s-page heading="Settings">
+    <s-page inline-size="large" heading="Settings">
       <div className="aone-settings-page">
         {error ? <ErrorBanner message={error} onRetry={() => void loadSettings()} /> : null}
 

@@ -573,7 +573,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
 
   if (!productId) {
     return (
-      <s-page heading="Product Versions">
+      <s-page inline-size="large" heading="Product Versions">
         <ErrorBanner message="Missing product id." />
         <s-button onClick={() => navigateApp("/products/versions")}>Back to search</s-button>
       </s-page>
@@ -581,7 +581,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   }
 
   return (
-    <s-page heading={heading}>
+    <s-page inline-size="large" heading={heading}>
       <div className="aone-versions-page">
         <div className="aone-toolbar aone-toolbar-spread">
           <div className="aone-toolbar">

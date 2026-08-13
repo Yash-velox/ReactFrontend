@@ -5,6 +5,7 @@ import ErrorBanner from "../components/ui/ErrorBanner";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ProductPickerDialog from "../components/ui/ProductPickerDialog";
+import RowDetailDialog, { detailText } from "../components/ui/RowDetailDialog";
 import BatchStatusBadge from "../components/ui/BatchStatusBadge";
 import StatusBadge from "../components/ui/StatusBadge";
 import Timestamp from "../components/ui/Timestamp";
@@ -12,7 +13,7 @@ import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, PaginationMeta, SecondaryQueueItem, SecondaryQueueSummary } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
-import { formatGid, truncateGid } from "../utils/format";
+import { formatGid, formatWhenFull, truncateGid } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 import { showAppToast } from "../utils/toast";
 
@@ -62,6 +63,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [selectedSecondary, setSelectedSecondary] = useState<SecondaryQueueItem | null>(null);
 
   const pollInFlight = useRef(false);
   // Keep latest paging in refs so the poll interval doesn't recreate forever.
@@ -221,7 +223,7 @@ export default function JobsPage() {
   };
 
   return (
-    <s-page heading="Jobs">
+    <s-page inline-size="large" heading="Jobs">
       <s-section heading="Processing monitor">
         <s-paragraph>Create batches, watch the queue, and track progress.</s-paragraph>
       </s-section>
@@ -398,7 +400,11 @@ export default function JobsPage() {
                     </thead>
                     <tbody>
                       {secondaryItems.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className="aone-table-row-clickable"
+                          onClick={() => setSelectedSecondary(item)}
+                        >
                           <td>
                             <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
                             <br />
@@ -421,7 +427,7 @@ export default function JobsPage() {
                             className="aone-table-cell-truncate"
                             title={item.skipReason ?? item.failureReason ?? undefined}
                           >
-                            {item.skipReason ?? item.failureReason ?? "-"}
+                            {item.skipReason ?? item.failureReason ?? "—"}
                           </td>
                         </tr>
                       ))}
@@ -580,6 +586,44 @@ export default function JobsPage() {
           )}
         </s-section>
       </div>
+
+      <RowDetailDialog
+        open={Boolean(selectedSecondary)}
+        title="Secondary Queue item"
+        onClose={() => setSelectedSecondary(null)}
+        fields={
+          selectedSecondary
+            ? [
+                { label: "Product", value: formatGid(selectedSecondary.shopifyProductGid) },
+                { label: "Shopify product GID", value: selectedSecondary.shopifyProductGid },
+                { label: "Internal product ID", value: detailText(selectedSecondary.productId) },
+                { label: "Queue revision", value: selectedSecondary.queueRevision },
+                { label: "Webhook count", value: selectedSecondary.webhookCount },
+                { label: "Status", value: selectedSecondary.status },
+                {
+                  label: "First queued",
+                  value: detailText(formatWhenFull(selectedSecondary.firstQueuedAt)),
+                },
+                {
+                  label: "Last queued",
+                  value: detailText(formatWhenFull(selectedSecondary.lastQueuedAt)),
+                },
+                {
+                  label: "Latest eligible webhook",
+                  value: detailText(selectedSecondary.latestEligibleWebhookId),
+                },
+                { label: "Claimed at", value: detailText(formatWhenFull(selectedSecondary.claimedAt)) },
+                { label: "Claimed by", value: detailText(selectedSecondary.claimedBy) },
+                { label: "Converted batch ID", value: detailText(selectedSecondary.convertedBatchId) },
+                { label: "Skip reason", value: detailText(selectedSecondary.skipReason) },
+                { label: "Failure reason", value: detailText(selectedSecondary.failureReason) },
+                { label: "Created", value: detailText(formatWhenFull(selectedSecondary.createdAt)) },
+                { label: "Updated", value: detailText(formatWhenFull(selectedSecondary.updatedAt)) },
+                { label: "Record ID", value: selectedSecondary.id },
+              ]
+            : []
+        }
+      />
     </s-page>
   );
 }

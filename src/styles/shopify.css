@@ -289,9 +289,10 @@ button.aone-stepper-hit:focus-visible {
   z-index: 1;
   text-align: left;
   padding: var(--aone-space-3) var(--aone-space-4);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 650;
-  color: var(--aone-text-subdued);
+  letter-spacing: 0.01em;
+  color: var(--aone-text);
   background: var(--aone-bg-subdued);
   border-bottom: 1px solid var(--aone-border);
   white-space: nowrap;
@@ -325,6 +326,47 @@ button.aone-stepper-hit:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Row detail modal (full fields for truncated table rows) */
+.aone-row-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-3);
+  margin: 0;
+  max-height: min(60vh, 480px);
+  overflow: auto;
+}
+
+.aone-row-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--aone-space-3);
+  border-bottom: 1px solid var(--aone-border);
+}
+
+.aone-row-detail-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.aone-row-detail-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--aone-text-subdued);
+}
+
+.aone-row-detail-value {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--aone-text);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Skeleton shimmer */
@@ -535,7 +577,7 @@ button.aone-stepper-hit:focus-visible {
   flex-direction: column;
   gap: var(--aone-space-5);
   width: 100%;
-  max-width: 720px;
+  max-width: none;
   grid-column: 1 / -1;
 }
 
@@ -1213,7 +1255,7 @@ button.aone-stepper-hit:focus-visible {
 }
 
 .aone-config-toggle {
-  margin-left: auto;
+  margin-left: 0;
   align-self: center;
   display: inline-flex;
   align-items: center;
@@ -1240,6 +1282,44 @@ button.aone-stepper-hit:focus-visible {
 .aone-config-toggle:has(input:disabled) {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.aone-config-actions {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aone-space-2);
+}
+
+.aone-config-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-sm);
+  background: var(--aone-bg);
+  color: #8e1f0b;
+  cursor: pointer;
+}
+
+.aone-config-delete-btn:hover:not(:disabled) {
+  background: #fff5f5;
+  border-color: #e0b3b2;
+}
+
+.aone-config-delete-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.aone-config-delete-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .aone-config-steps-footer {
@@ -1748,3 +1828,82 @@ a.aone-overflow-item:visited {
   align-items: center;
   gap: var(--aone-space-2);
 }
+
+/* ── Catalog sync / generic progress ── */
+.aone-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-2);
+  width: 100%;
+  padding: var(--aone-space-4);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: linear-gradient(180deg, #f4f8fd 0%, var(--aone-bg) 55%);
+  box-sizing: border-box;
+}
+
+.aone-progress-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--aone-space-2);
+}
+
+.aone-progress-label {
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--aone-text);
+}
+
+.aone-progress-detail {
+  font-size: 13px;
+  color: var(--aone-text-subdued);
+  font-variant-numeric: tabular-nums;
+}
+
+.aone-progress-track {
+  position: relative;
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--aone-bg-subdued);
+  border: 1px solid var(--aone-border);
+  box-sizing: border-box;
+}
+
+.aone-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--aone-focus);
+  transition: width 0.35s ease;
+}
+
+.aone-progress-track.is-indeterminate .aone-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  transition: none;
+  animation: aone-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+.aone-progress-pct {
+  align-self: flex-end;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--aone-text-subdued);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes aone-progress-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+

@@ -90,7 +90,7 @@ export default function ProductVersionsHubPage() {
   }, [load]);
 
   return (
-    <s-page heading="Product Versions">
+    <s-page inline-size="large" heading="Product Versions">
       <s-stack direction="block" gap="base">
         <s-paragraph>
           Search products that have been published through this app. Open a product to revert a

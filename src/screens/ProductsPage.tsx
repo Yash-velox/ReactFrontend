@@ -4,6 +4,8 @@ import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
+import ProgressBar from "../components/ui/ProgressBar";
+import RowDetailDialog, { detailText } from "../components/ui/RowDetailDialog";
 import StatusBadge, { getStatusConfig } from "../components/ui/StatusBadge";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
@@ -21,7 +23,10 @@ export default function ProductsPage() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [runs, setRuns] = useState<SyncRun[]>([]);
+  const [selectedRun, setSelectedRun] = useState<SyncRun | null>(null);
   const pollInFlight = useRef(false);
+  /** Catalog size when sync became busy — used for % when re-syncing a known catalog. */
+  const [syncBaseline, setSyncBaseline] = useState<number | null>(null);
 
   const refresh = useCallback(
     async (opts?: { force?: boolean }) => {
@@ -54,8 +59,19 @@ export default function ProductsPage() {
     void refresh();
   }, [refresh]);
 
-  const isSyncActive = status?.latestRun?.status === "RUNNING" || status?.latestRun?.status === "PENDING";
+  const isSyncActive =
+    status?.latestRun?.status === "RUNNING" || status?.latestRun?.status === "PENDING";
   const showSyncBusy = syncing || isSyncActive;
+
+  // Snapshot catalog size once when sync starts. Re-sync (>0) → determinate %.
+  // First sync (0) → indeterminate bar + live counters only.
+  useEffect(() => {
+    if (!showSyncBusy) {
+      setSyncBaseline(null);
+      return;
+    }
+    setSyncBaseline((prev) => (prev === null ? (status?.productCount ?? 0) : prev));
+  }, [showSyncBusy, status?.productCount]);
 
   // Poll while the Sync POST is in flight or the latest run is still active,
   // so counters update even before the Sync request returns.
@@ -64,11 +80,13 @@ export default function ProductsPage() {
     void refresh({ force: true });
     const timer = window.setInterval(() => {
       void refresh();
-    }, 3000);
+    }, 2000);
     return () => window.clearInterval(timer);
   }, [showSyncBusy, refresh]);
 
   const syncCatalog = async () => {
+    // Capture baseline before POST so re-sync % uses the pre-sync catalog size.
+    setSyncBaseline(status?.productCount ?? 0);
     setSyncing(true);
     setError("");
     setMessage("");
@@ -91,12 +109,20 @@ export default function ProductsPage() {
 
   const latest = status?.latestRun;
   const latestConfig = latest ? getStatusConfig(latest.status) : null;
+  const liveProducts = showSyncBusy ? (latest?.productsSynced ?? 0) : 0;
+  const liveMedia = showSyncBusy ? (latest?.mediaSynced ?? 0) : 0;
+  const baseline = syncBaseline ?? 0;
+  const progressValue =
+    showSyncBusy && baseline > 0
+      ? Math.min(95, Math.round((liveProducts / Math.max(baseline, liveProducts, 1)) * 100))
+      : null;
 
   return (
-    <s-page heading="Products">
+    <s-page inline-size="large" heading="Products">
       <s-section heading="Catalog sync">
         <s-paragraph>
-          Sync product and media metadata from Shopify. Image binaries are not downloaded during sync.
+          Update your product list and image details from Shopify. Photos stay in your store — this
+          only refreshes the information used for processing.
         </s-paragraph>
       </s-section>
 
@@ -141,6 +167,14 @@ export default function ProductsPage() {
               />
             </div>
 
+            {showSyncBusy ? (
+              <ProgressBar
+                label="Syncing catalog…"
+                detail={`${liveProducts} products · ${liveMedia} media so far`}
+                value={progressValue}
+              />
+            ) : null}
+
             {latest ? (
               <div className="aone-stat-grid">
                 <div className="aone-stat">
@@ -164,14 +198,14 @@ export default function ProductsPage() {
               </div>
             ) : (
               <EmptyState
-                title="No sync runs yet"
-                description="Run your first catalog sync to populate local product and media metadata."
+                title="No sync jobs yet"
+                description="Run your first catalog sync to load product and image details from Shopify."
               />
             )}
 
             <div className="aone-toolbar">
               <s-button variant="primary" onClick={() => void syncCatalog()} disabled={showSyncBusy}>
-                {showSyncBusy ? "Syncing…" : "Sync products"}
+                {showSyncBusy ? "Sync in progress" : "Sync products"}
               </s-button>
               <s-button onClick={() => void refresh({ force: true })}>
                 {refreshing ? "Refreshing…" : "Refresh"}
@@ -181,11 +215,14 @@ export default function ProductsPage() {
         )}
       </s-section>
 
-      <s-section heading="Recent sync runs">
+      <s-section heading="Recent sync jobs">
         {loading ? (
           <PageSkeleton metricCount={0} tableRows={4} />
         ) : runs.length === 0 ? (
-          <EmptyState title="No runs recorded" description="Sync history will appear here after the first run." />
+          <EmptyState
+            title="No sync jobs yet"
+            description="Sync history will appear here after you run a catalog sync."
+          />
         ) : (
           <DataTable>
             <thead>
@@ -201,7 +238,11 @@ export default function ProductsPage() {
             </thead>
             <tbody>
               {runs.map((run) => (
-                <tr key={run.id}>
+                <tr
+                  key={run.id}
+                  className="aone-table-row-clickable"
+                  onClick={() => setSelectedRun(run)}
+                >
                   <td>
                     <StatusBadge status={run.status} />
                   </td>
@@ -215,7 +256,7 @@ export default function ProductsPage() {
                     <Timestamp value={run.completedAt} />
                   </td>
                   <td className="aone-table-cell-truncate" title={run.errorMessage ?? undefined}>
-                    {run.errorMessage ?? "-"}
+                    {run.errorMessage ?? "—"}
                   </td>
                 </tr>
               ))}
@@ -223,6 +264,29 @@ export default function ProductsPage() {
           </DataTable>
         )}
       </s-section>
+
+      <RowDetailDialog
+        open={Boolean(selectedRun)}
+        title="Sync job details"
+        onClose={() => setSelectedRun(null)}
+        fields={
+          selectedRun
+            ? [
+                { label: "Status", value: selectedRun.status },
+                { label: "Type", value: selectedRun.runType },
+                { label: "Products synced", value: selectedRun.productsSynced },
+                { label: "Media synced", value: selectedRun.mediaSynced },
+                { label: "Cursor", value: detailText(selectedRun.cursor) },
+                { label: "Error", value: detailText(selectedRun.errorMessage) },
+                { label: "Started", value: detailText(formatWhenFull(selectedRun.startedAt)) },
+                { label: "Completed", value: detailText(formatWhenFull(selectedRun.completedAt)) },
+                { label: "Created", value: detailText(formatWhenFull(selectedRun.createdAt)) },
+                { label: "Updated", value: detailText(formatWhenFull(selectedRun.updatedAt)) },
+                { label: "Run ID", value: selectedRun.id },
+              ]
+            : []
+        }
+      />
     </s-page>
   );
 }

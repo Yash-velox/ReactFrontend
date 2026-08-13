@@ -9,6 +9,7 @@ import PageSkeleton from "../components/ui/PageSkeleton";
 import ReprocessPromptDialog, {
   type ReprocessPreview,
 } from "../components/ui/ReprocessPromptDialog";
+import RowDetailDialog, { detailText } from "../components/ui/RowDetailDialog";
 import BatchStatusBadge from "../components/ui/BatchStatusBadge";
 import StatusBadge from "../components/ui/StatusBadge";
 import Timestamp from "../components/ui/Timestamp";
@@ -16,7 +17,7 @@ import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, BatchImage, BatchProduct } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
-import { truncateGid } from "../utils/format";
+import { formatWhenFull, truncateGid } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 
 type ReprocessTarget =
@@ -101,6 +102,8 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
   const [message, setMessage] = useState("");
   const [conflictText, setConflictText] = useState("");
   const [previewImage, setPreviewImage] = useState<BatchImage | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<BatchProduct | null>(null);
+  const [selectedImage, setSelectedImage] = useState<BatchImage | null>(null);
   const [publishBusyId, setPublishBusyId] = useState<string | null>(null);
   const [publishAllBusy, setPublishAllBusy] = useState(false);
   const [autoPublishEnabled, setAutoPublishEnabled] = useState(false);
@@ -395,7 +398,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
 
   if (!batchId) {
     return (
-      <s-page heading="Batch detail">
+      <s-page inline-size="large" heading="Batch detail">
         <s-section>
           <ErrorBanner message="Missing batch id." />
           <div className="aone-toolbar" style={{ marginTop: "0.75rem" }}>
@@ -408,7 +411,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
 
   if (loading && !batch) {
     return (
-      <s-page heading={heading}>
+      <s-page inline-size="large" heading={heading}>
         <s-section>
           <div className="aone-toolbar" style={{ marginBottom: "0.75rem" }}>
             <s-button onClick={() => navigateApp("/jobs")}>← Back to Jobs</s-button>
@@ -421,7 +424,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
 
   if (!batch) {
     return (
-      <s-page heading="Batch detail">
+      <s-page inline-size="large" heading="Batch detail">
         <s-section>
           <ErrorBanner
             message={error || "Batch not found"}
@@ -436,7 +439,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
   }
 
   return (
-    <s-page heading={heading}>
+    <s-page inline-size="large" heading={heading}>
       <s-section>
         <div className="aone-detail-header">
           <s-stack direction="block" gap="small">
@@ -571,7 +574,11 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                     const pub = product.publishStatus;
                     const busy = publishBusyId === product.id;
                     return (
-                      <tr key={product.id}>
+                      <tr
+                        key={product.id}
+                        className="aone-table-row-clickable"
+                        onClick={() => setSelectedProduct(product)}
+                      >
                         <td>
                           <code className="aone-mono" title={product.shopifyProductGid}>
                             {truncateGid(product.shopifyProductGid)}
@@ -594,7 +601,10 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                         <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
                           {product.errorMessage ?? "—"}
                         </td>
-                        <td className="aone-col-actions">
+                        <td
+                          className="aone-col-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {(() => {
                             const canReprocess = canReprocessProduct(product);
                             const showPublish = pub === "READY_TO_PUBLISH";
@@ -689,7 +699,11 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                 </thead>
                 <tbody>
                   {batchImages.map((image) => (
-                    <tr key={image.id}>
+                    <tr
+                      key={image.id}
+                      className="aone-table-row-clickable"
+                      onClick={() => setSelectedImage(image)}
+                    >
                       <td>
                         <code className="aone-mono" title={image.shopifyMediaGid}>
                           {truncateGid(image.shopifyMediaGid)}
@@ -705,7 +719,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                       <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
                         {image.errorMessage ?? "—"}
                       </td>
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
                           {canReprocessImage(image, batchProducts) ? (
                             <s-button
@@ -746,6 +760,84 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
       />
 
       <ImageCompareDialog image={previewImage} onClose={() => setPreviewImage(null)} />
+
+      <RowDetailDialog
+        open={Boolean(selectedProduct)}
+        title="Batch product details"
+        onClose={() => setSelectedProduct(null)}
+        fields={
+          selectedProduct
+            ? [
+                { label: "Shopify product GID", value: selectedProduct.shopifyProductGid },
+                { label: "Internal product ID", value: detailText(selectedProduct.productId) },
+                { label: "Status", value: selectedProduct.status },
+                { label: "Publish status", value: detailText(selectedProduct.publishStatus) },
+                { label: "Images", value: selectedProduct.imageCount },
+                { label: "Retries", value: selectedProduct.retryCount },
+                { label: "Error code", value: detailText(selectedProduct.errorCode) },
+                { label: "Error message", value: detailText(selectedProduct.errorMessage) },
+                { label: "Locked by", value: detailText(selectedProduct.lockedBy) },
+                { label: "Locked at", value: detailText(formatWhenFull(selectedProduct.lockedAt)) },
+                { label: "Claimed at", value: detailText(formatWhenFull(selectedProduct.claimedAt)) },
+                { label: "Started", value: detailText(formatWhenFull(selectedProduct.startedAt)) },
+                { label: "Completed", value: detailText(formatWhenFull(selectedProduct.completedAt)) },
+                {
+                  label: "Next retry",
+                  value: detailText(formatWhenFull(selectedProduct.nextRetryAt)),
+                },
+                { label: "Created", value: detailText(formatWhenFull(selectedProduct.createdAt)) },
+                { label: "Updated", value: detailText(formatWhenFull(selectedProduct.updatedAt)) },
+                { label: "Batch ID", value: selectedProduct.batchId },
+                { label: "Record ID", value: selectedProduct.id },
+              ]
+            : []
+        }
+      />
+
+      <RowDetailDialog
+        open={Boolean(selectedImage)}
+        title="Batch image details"
+        onClose={() => setSelectedImage(null)}
+        fields={
+          selectedImage
+            ? [
+                { label: "Shopify media GID", value: selectedImage.shopifyMediaGid },
+                { label: "Shopify file GID", value: detailText(selectedImage.shopifyFileGid) },
+                { label: "CDN URL", value: selectedImage.cdnUrl },
+                { label: "Filename", value: detailText(selectedImage.originalFilename) },
+                {
+                  label: "Size",
+                  value:
+                    selectedImage.width && selectedImage.height
+                      ? `${selectedImage.width} × ${selectedImage.height}`
+                      : "—",
+                },
+                { label: "MIME type", value: detailText(selectedImage.mimeType) },
+                { label: "Delta", value: selectedImage.deltaType },
+                { label: "Status", value: selectedImage.status },
+                { label: "Prompt step", value: selectedImage.currentPromptStep },
+                { label: "Attempts", value: selectedImage.attemptCount },
+                { label: "Error code", value: detailText(selectedImage.errorCode) },
+                { label: "Error message", value: detailText(selectedImage.errorMessage) },
+                { label: "Output URL", value: detailText(selectedImage.outputUrl) },
+                {
+                  label: "Generated CDN URL",
+                  value: detailText(selectedImage.generatedShopifyCdnUrl),
+                },
+                {
+                  label: "Generated file GID",
+                  value: detailText(selectedImage.generatedShopifyFileGid),
+                },
+                { label: "Started", value: detailText(formatWhenFull(selectedImage.startedAt)) },
+                { label: "Completed", value: detailText(formatWhenFull(selectedImage.completedAt)) },
+                { label: "Created", value: detailText(formatWhenFull(selectedImage.createdAt)) },
+                { label: "Updated", value: detailText(formatWhenFull(selectedImage.updatedAt)) },
+                { label: "Batch product ID", value: selectedImage.batchProductId },
+                { label: "Record ID", value: selectedImage.id },
+              ]
+            : []
+        }
+      />
     </s-page>
   );
 }

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ConfirmDialog from "../components/ui/ConfirmDialog";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
@@ -37,6 +36,8 @@ export default function PromptsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"success" | "critical">("success");
+  const [messageHeading, setMessageHeading] = useState("Updated");
   const [items, setItems] = useState<PromptProductTypeListItem[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -45,7 +46,6 @@ export default function PromptsPage() {
   const [newName, setNewName] = useState("");
   const [addError, setAddError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<PromptProductTypeListItem | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const searchTimer = useRef<number | undefined>(undefined);
 
@@ -93,6 +93,15 @@ export default function PromptsPage() {
     navigateApp(`/prompts/${item.id}`);
   };
 
+  const showFeedback = (
+    text: string,
+    options?: { heading?: string; tone?: "success" | "critical" },
+  ) => {
+    setMessageHeading(options?.heading ?? "Updated");
+    setMessageTone(options?.tone ?? "success");
+    setMessage(text);
+  };
+
   const toggleEnabled = async (item: PromptProductTypeListItem, isEnabled: boolean) => {
     setBusyId(item.id);
     setError("");
@@ -104,7 +113,15 @@ export default function PromptsPage() {
           body: JSON.stringify({ isEnabled }),
         }),
       );
-      setMessage(`Prompt configuration ${isEnabled ? "enabled" : "disabled"} for ${item.name}.`);
+      showFeedback(
+        isEnabled
+          ? `"${item.name}" is ready to use for processing.`
+          : `"${item.name}" will not be used until you enable it again.`,
+        {
+          heading: isEnabled ? "Enabled" : "Disabled",
+          tone: isEnabled ? "success" : "critical",
+        },
+      );
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update configuration");
@@ -131,7 +148,7 @@ export default function PromptsPage() {
       );
       setAddOpen(false);
       setNewName("");
-      setMessage(`Added product type "${name}".`);
+      showFeedback(`Added product type "${name}".`);
       await load();
     } catch (err) {
       setAddError(err instanceof Error ? err.message : "Failed to add product type");
@@ -140,35 +157,16 @@ export default function PromptsPage() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setBusyId(deleteTarget.id);
-    setError("");
-    try {
-      await parseApiResponse(
-        await authenticatedFetch(endpoints.promptProductType(deleteTarget.id), { method: "DELETE" }),
-      );
-      setMessage(`Deleted product type "${deleteTarget.name}".`);
-      setDeleteTarget(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete product type");
-      setDeleteTarget(null);
-    } finally {
-      setBusyId(null);
-    }
-  };
-
   if (loading && items.length === 0) {
     return (
-      <s-page heading="Prompt Management">
+      <s-page inline-size="large" heading="Prompt Management">
         <PageSkeleton />
       </s-page>
     );
   }
 
   return (
-    <s-page heading="Prompt Management">
+    <s-page inline-size="large" heading="Prompt Management">
       <s-section>
         <s-paragraph>
           Set prompts by product type. Central Prompt covers the rest.
@@ -183,135 +181,126 @@ export default function PromptsPage() {
 
       {message ? (
         <s-section>
-          <s-banner tone="success" heading="Updated">
+          <s-banner tone={messageTone} heading={messageHeading}>
             <s-paragraph>{message}</s-paragraph>
           </s-banner>
         </s-section>
       ) : null}
 
-      <s-section>
-        <div className="aone-toolbar aone-toolbar-spread">
-          <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
-            <input
-              className="aone-input"
-              type="search"
-              placeholder="Search product type..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Search product type"
-              style={{ minWidth: "14rem" }}
-            />
-            <select
-              className="aone-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              aria-label="Status filter"
-            >
-              {STATUS_FILTERS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <s-button
-            variant="primary"
-            onClick={() => {
-              setAddError("");
-              setNewName("");
-              setAddOpen(true);
-            }}
-          >
-            + Add Product Type
-          </s-button>
-        </div>
-      </s-section>
-
       <s-section heading="Product types">
-        {filteredEmpty ? (
-          <EmptyState
-            title="No product types yet"
-            description="Sync your Shopify catalog or add a product type manually to configure prompts."
-          />
-        ) : (
-          <DataTable>
-            <thead>
-              <tr>
-                <th>Product Type</th>
-                <th>Source</th>
-                <th>Prompt Steps</th>
-                <th>Status</th>
-                <th>Last Updated</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => {
-                const isCentral = Boolean(item.isCentral) || item.source === "SYSTEM";
-                const canToggle = item.stepCount > 0 && !isCentral;
-                const configureLabel = item.stepCount === 0 ? "Configure" : "Edit";
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.name}</strong>
-                    </td>
-                    <td>
-                      <StatusBadge status={item.source} />
-                    </td>
-                    <td>
-                      {item.stepCount === 0
-                        ? "0 Steps"
-                        : `${item.stepCount} Step${item.stepCount === 1 ? "" : "s"}`}
-                    </td>
-                    <td>
-                      <span title={statusLabel(item.status)}>
-                        <StatusBadge status={item.status} />
-                      </span>
-                    </td>
-                    <td>
-                      <Timestamp value={item.updatedAt} />
-                    </td>
-                    <td>
-                      <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
-                        <s-button
-                          onClick={() => openConfigure(item)}
-                          disabled={busyId === item.id}
-                        >
-                          {configureLabel}
-                        </s-button>
-                        {canToggle && item.isEnabled ? (
+        <s-stack direction="block" gap="base">
+          <div className="aone-toolbar aone-toolbar-spread">
+            <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
+              <input
+                className="aone-input"
+                type="search"
+                placeholder="Search product type..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search product type"
+                style={{ minWidth: "14rem" }}
+              />
+              <select
+                className="aone-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                aria-label="Status filter"
+              >
+                {STATUS_FILTERS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <s-button
+              variant="primary"
+              onClick={() => {
+                setAddError("");
+                setNewName("");
+                setAddOpen(true);
+              }}
+            >
+              + Add Product Type
+            </s-button>
+          </div>
+
+          {filteredEmpty ? (
+            <EmptyState
+              title="No product types yet"
+              description="Sync your Shopify catalog or add a product type manually to configure prompts."
+            />
+          ) : (
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Product Type</th>
+                  <th>Source</th>
+                  <th>Prompt Steps</th>
+                  <th>Status</th>
+                  <th>Last Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const isCentral = Boolean(item.isCentral) || item.source === "SYSTEM";
+                  const canToggle = item.stepCount > 0 && !isCentral;
+                  const configureLabel = item.stepCount === 0 ? "Configure" : "Edit";
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{item.name}</strong>
+                      </td>
+                      <td>
+                        <StatusBadge status={item.source} />
+                      </td>
+                      <td>
+                        {item.stepCount === 0
+                          ? "0 Steps"
+                          : `${item.stepCount} Step${item.stepCount === 1 ? "" : "s"}`}
+                      </td>
+                      <td>
+                        <span title={statusLabel(item.status)}>
+                          <StatusBadge status={item.status} />
+                        </span>
+                      </td>
+                      <td>
+                        <Timestamp value={item.updatedAt} />
+                      </td>
+                      <td>
+                        <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
                           <s-button
-                            onClick={() => void toggleEnabled(item, false)}
+                            onClick={() => openConfigure(item)}
                             disabled={busyId === item.id}
                           >
-                            Disable
+                            {configureLabel}
                           </s-button>
-                        ) : null}
-                        {canToggle && !item.isEnabled ? (
-                          <s-button
-                            onClick={() => void toggleEnabled(item, true)}
-                            disabled={busyId === item.id}
-                          >
-                            Enable
-                          </s-button>
-                        ) : null}
-                        {item.source === "MANUAL" && !isCentral ? (
-                          <s-button
-                            tone="critical"
-                            onClick={() => setDeleteTarget(item)}
-                            disabled={busyId === item.id}
-                          >
-                            Delete
-                          </s-button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </DataTable>
-        )}
+                          {canToggle && item.isEnabled ? (
+                            <s-button
+                              onClick={() => void toggleEnabled(item, false)}
+                              disabled={busyId === item.id}
+                            >
+                              Disable
+                            </s-button>
+                          ) : null}
+                          {canToggle && !item.isEnabled ? (
+                            <s-button
+                              onClick={() => void toggleEnabled(item, true)}
+                              disabled={busyId === item.id}
+                            >
+                              Enable
+                            </s-button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </DataTable>
+          )}
+        </s-stack>
       </s-section>
 
       {addOpen ? (
@@ -349,21 +338,6 @@ export default function PromptsPage() {
           </s-stack>
         </s-modal>
       ) : null}
-
-      <ConfirmDialog
-        open={Boolean(deleteTarget)}
-        title="Delete product type?"
-        message={
-          deleteTarget
-            ? `Delete "${deleteTarget.name}" and its saved prompt configuration and steps? Shopify products are not modified.`
-            : ""
-        }
-        confirmLabel="Delete"
-        tone="critical"
-        busy={busyId === deleteTarget?.id}
-        onConfirm={() => void confirmDelete()}
-        onCancel={() => setDeleteTarget(null)}
-      />
     </s-page>
   );
 }

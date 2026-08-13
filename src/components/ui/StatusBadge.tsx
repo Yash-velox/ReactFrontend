@@ -15,7 +15,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
 
   // Prompt management
   ENABLED: { tone: "success", label: "Enabled" },
-  DISABLED: { tone: "neutral", label: "Disabled" },
+  DISABLED: { tone: "critical", label: "Disabled" },
   NOT_CONFIGURED: { tone: "caution", label: "Not Configured" },
   NOT_READY: { tone: "caution", label: "Not Ready" },
   SHOPIFY: { tone: "info", label: "Shopify" },

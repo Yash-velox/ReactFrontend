@@ -32,7 +32,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <s-page heading="Something went wrong">
+      <s-page inline-size="large" heading="Something went wrong">
         <s-section>
           <s-box padding="base" borderWidth="base" borderRadius="base">
             <s-stack direction="block" gap="base">
