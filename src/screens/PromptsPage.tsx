@@ -171,7 +171,8 @@ export default function PromptsPage() {
     <s-page heading="Prompt Management">
       <s-section>
         <s-paragraph>
-          Configure sequential image-processing prompts for each Shopify product type.
+          Configure sequential image-processing prompts per Shopify product type. When a type has no
+          ready prompt, processing uses the always-on Central Prompt.
         </s-paragraph>
       </s-section>
 
@@ -247,12 +248,18 @@ export default function PromptsPage() {
             </thead>
             <tbody>
               {items.map((item) => {
-                const canToggle = item.stepCount > 0;
+                const isCentral = Boolean(item.isCentral) || item.source === "SYSTEM";
+                const canToggle = item.stepCount > 0 && !isCentral;
                 const configureLabel = item.stepCount === 0 ? "Configure" : "Edit";
                 return (
                   <tr key={item.id}>
                     <td>
                       <strong>{item.name}</strong>
+                      {isCentral ? (
+                        <div className="aone-field-hint">
+                          Fallback for missing, disabled, or unconfigured product types
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       <StatusBadge status={item.source} />
@@ -297,7 +304,7 @@ export default function PromptsPage() {
                             Enable
                           </s-button>
                         ) : null}
-                        {item.source === "MANUAL" ? (
+                        {item.source === "MANUAL" && !isCentral ? (
                           <s-button
                             tone="critical"
                             onClick={() => setDeleteTarget(item)}

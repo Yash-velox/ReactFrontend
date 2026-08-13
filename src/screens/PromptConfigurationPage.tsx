@@ -331,9 +331,10 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   }
 
   const steps = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+  const isCentral = Boolean(detail.isCentral) || detail.source === "SYSTEM";
 
   return (
-    <s-page heading="Prompt Configuration">
+    <s-page heading={isCentral ? "Central Prompt" : "Prompt Configuration"}>
       {error ? (
         <s-section>
           <ErrorBanner message={error} onRetry={() => void load()} />
@@ -368,22 +369,39 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               <div className="aone-config-meta-label">Total Steps</div>
               <div className="aone-config-meta-value">{detail.stepCount}</div>
             </div>
-            <label className="aone-config-toggle">
-              <input
-                type="checkbox"
-                checked={detail.isEnabled}
-                disabled={saving}
-                onChange={(e) => void setConfigEnabled(e.target.checked)}
-              />
-              <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
-            </label>
+            {isCentral ? (
+              <div className="aone-config-meta-item">
+                <div className="aone-config-meta-label">Availability</div>
+                <div className="aone-config-meta-value">Always on (cannot disable)</div>
+              </div>
+            ) : (
+              <label className="aone-config-toggle">
+                <input
+                  type="checkbox"
+                  checked={detail.isEnabled}
+                  disabled={saving}
+                  onChange={(e) => void setConfigEnabled(e.target.checked)}
+                />
+                <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
+              </label>
+            )}
           </div>
+
+          {isCentral ? (
+            <s-banner tone="info" heading="Shop-level fallback">
+              <s-paragraph>
+                Used automatically when a product has no product type, or its product-type prompt is
+                missing, disabled, or has no enabled steps.
+              </s-paragraph>
+            </s-banner>
+          ) : null}
 
           {detail.status === "NOT_READY" ? (
             <s-banner tone="warning" heading="Not ready for processing">
               <s-paragraph>
-                This configuration is enabled but every step is disabled. Enable at least one step
-                before processing products of this type.
+                {isCentral
+                  ? "Central Prompt has no enabled steps. Enable at least one step so products without a ready product-type prompt can process."
+                  : "This configuration is enabled but every step is disabled. Enable at least one step before processing products of this type."}
               </s-paragraph>
             </s-banner>
           ) : null}

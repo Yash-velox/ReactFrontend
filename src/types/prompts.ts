@@ -1,5 +1,5 @@
 export type PromptListStatus = "NOT_CONFIGURED" | "ENABLED" | "DISABLED" | "NOT_READY";
-export type PromptProductTypeSource = "SHOPIFY" | "MANUAL";
+export type PromptProductTypeSource = "SHOPIFY" | "MANUAL" | "SYSTEM";
 
 export type PromptProductTypeListItem = {
   id: string;
@@ -9,6 +9,7 @@ export type PromptProductTypeListItem = {
   enabledStepCount: number;
   status: PromptListStatus;
   isEnabled: boolean;
+  isCentral?: boolean;
   updatedAt?: string | null;
   createdAt: string;
 };
@@ -37,6 +38,7 @@ export type PromptConfigurationDetail = {
   name: string;
   source: PromptProductTypeSource;
   isEnabled: boolean;
+  isCentral?: boolean;
   status: PromptListStatus;
   stepCount: number;
   enabledStepCount: number;
