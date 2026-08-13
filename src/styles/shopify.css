@@ -339,6 +339,90 @@ button.aone-stepper-hit:focus-visible {
   white-space: nowrap;
 }
 
+/* Locked in-app dialog (not App Bridge s-modal) — outside click never closes */
+.aone-locked-dialog-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--aone-space-4);
+  box-sizing: border-box;
+}
+
+.aone-locked-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, #000 45%, transparent);
+  pointer-events: auto;
+}
+
+.aone-locked-dialog-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(86vh, 720px);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.aone-locked-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--aone-space-3);
+  padding: var(--aone-space-4);
+  border-bottom: 1px solid var(--aone-border);
+  flex-shrink: 0;
+}
+
+.aone-locked-dialog-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--aone-text);
+}
+
+.aone-locked-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-sm);
+  background: var(--aone-bg);
+  color: var(--aone-text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.aone-locked-dialog-close:hover:not(:disabled) {
+  background: var(--aone-bg-subdued);
+}
+
+.aone-locked-dialog-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.aone-locked-dialog-body {
+  padding: var(--aone-space-4);
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* Row detail modal (full fields for truncated table rows) */
 .aone-row-detail {
   display: flex;

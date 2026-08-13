@@ -4,10 +4,10 @@ import AonePage from "../components/ui/AonePage";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
+import LockedDialog from "../components/ui/LockedDialog";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import RowDetailDialog, { detailText } from "../components/ui/RowDetailDialog";
 import StatusBadge from "../components/ui/StatusBadge";
-import { useModalOverlay } from "../components/ui/useModalOverlay";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { PromptConfigurationDetail, PromptStep } from "../types/prompts";
@@ -73,13 +73,9 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
-  const stepModal = useModalOverlay(
-    stepModalOpen,
-    () => {
-      if (!saving) setStepModalOpen(false);
-    },
-    { closeOnOutsideClick: false },
-  );
+  const closeStepModal = useCallback(() => {
+    if (!saving) setStepModalOpen(false);
+  }, [saving]);
 
   const closeStepMenu = useCallback(() => {
     setMenuStepId(null);
@@ -594,10 +590,11 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
         : null}
 
       {stepModalOpen ? (
-        <s-modal
-          id={stepModal.id}
-          ref={stepModal.ref}
-          heading={editingStep ? "Edit Prompt Step" : "Add Prompt Step"}
+        <LockedDialog
+          open={stepModalOpen}
+          title={editingStep ? "Edit Prompt Step" : "Add Prompt Step"}
+          busy={saving}
+          onClose={closeStepModal}
         >
           <s-stack direction="block" gap="base">
             <div className="aone-field-group">
@@ -647,7 +644,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               </s-banner>
             ) : null}
             <div className="aone-toolbar">
-              <s-button onClick={stepModal.dismiss} disabled={saving}>
+              <s-button onClick={closeStepModal} disabled={saving}>
                 Close
               </s-button>
               <s-button
@@ -659,7 +656,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               </s-button>
             </div>
           </s-stack>
-        </s-modal>
+        </LockedDialog>
       ) : null}
 
       <ConfirmDialog
