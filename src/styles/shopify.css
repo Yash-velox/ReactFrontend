@@ -1,4 +1,4 @@
-/* Aone Content — token-based layout layer for Polaris web components */
+/* Aone Content - token-based layout layer for Polaris web components */
 
 :root {
   --aone-text: var(--p-color-text, #202223);
@@ -33,7 +33,7 @@ body {
   color: var(--aone-text);
 }
 
-/* Focus — visible outlines, no !important */
+/* Focus - visible outlines, no !important */
 :focus-visible {
   outline: 2px solid var(--aone-focus);
   outline-offset: 2px;
@@ -89,7 +89,7 @@ textarea:focus-visible {
   margin-top: auto;
 }
 
-/* Getting started — single-frame horizontal stepper */
+/* Getting started - single-frame horizontal stepper */
 .aone-stepper-wrap {
   display: flex;
   flex-direction: column;
@@ -515,18 +515,124 @@ button.aone-stepper-hit:focus-visible {
 
 .aone-checkbox-row {
   display: flex;
-  align-items: center;
-  gap: var(--aone-space-2);
+  align-items: flex-start;
+  gap: var(--aone-space-3);
   font-size: 13px;
   color: var(--aone-text);
 }
 
 .aone-checkbox-row input {
-  margin: 0;
+  margin: 2px 0 0;
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   accent-color: var(--aone-focus);
+}
+
+/* Settings page */
+.aone-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-5);
+  width: 100%;
+  max-width: 720px;
+  grid-column: 1 / -1;
+}
+
+.aone-settings-page > s-section {
+  width: 100%;
+  min-width: 0;
+}
+
+.aone-settings-intro {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--aone-text-subdued);
+}
+
+.aone-settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-4);
+}
+
+.aone-settings-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--aone-space-3);
+  margin: 0;
+  padding: var(--aone-space-4);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
+  cursor: pointer;
+}
+
+.aone-settings-row:hover {
+  border-color: color-mix(in srgb, var(--aone-text-subdued) 45%, var(--aone-border));
+  background: var(--aone-bg-subdued);
+}
+
+.aone-settings-row:has(.aone-settings-checkbox:focus-visible) {
+  border-color: var(--aone-focus);
+  box-shadow: 0 0 0 1px var(--aone-focus);
+}
+
+.aone-settings-checkbox {
+  margin: 3px 0 0;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--aone-focus);
+  cursor: pointer;
+}
+
+.aone-settings-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-1);
+  min-width: 0;
+}
+
+.aone-settings-row-title {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--aone-text);
+}
+
+.aone-settings-row-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--aone-text-subdued);
+}
+
+.aone-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-1);
+  max-width: 280px;
+  padding-left: calc(18px + var(--aone-space-3));
+}
+
+.aone-settings-input {
+  max-width: 140px;
+}
+
+.aone-settings-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--aone-bg-subdued);
+}
+
+.aone-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--aone-space-2);
+  align-items: center;
+  padding-top: var(--aone-space-2);
+  border-top: 1px solid var(--aone-border);
 }
 
 /* Pagination */
@@ -543,6 +649,19 @@ button.aone-stepper-hit:focus-visible {
   margin: 0;
   font-size: 13px;
   color: var(--aone-text-subdued);
+}
+
+.aone-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--aone-space-2);
+  font-size: 13px;
+  color: var(--aone-text-subdued);
+}
+
+.aone-page-size-select {
+  width: auto;
+  min-width: 4.5rem;
 }
 
 /* Detail panel */
@@ -739,7 +858,7 @@ button.aone-stepper-hit:focus-visible {
   background: color-mix(in srgb, var(--aone-bg-subdued) 70%, #fff);
 }
 
-/* Type / Status filter triggers — outlined buttons, not plain text */
+/* Type / Status filter triggers - outlined buttons, not plain text */
 .aone-picker-filter-add {
   appearance: none;
   display: inline-flex;
@@ -800,7 +919,7 @@ button.aone-stepper-hit:focus-visible {
   text-decoration: none;
 }
 
-/* Prev / Next — real secondary buttons */
+/* Prev / Next - real secondary buttons */
 .aone-picker-page-btn {
   appearance: none;
   display: inline-flex;

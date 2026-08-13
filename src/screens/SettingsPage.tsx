@@ -41,8 +41,8 @@ export default function SettingsPage() {
   const validate = (): boolean => {
     const interval = Number(batchIntervalMinutes);
 
-    if (!Number.isFinite(interval) || interval < 1) {
-      setValidationError("Batch interval must be at least 1 minute.");
+    if (!Number.isFinite(interval) || !Number.isInteger(interval) || interval < 0) {
+      setValidationError("Wait must be 0 or a whole number of minutes.");
       return false;
     }
     setValidationError("");
@@ -68,7 +68,7 @@ export default function SettingsPage() {
       setAutoSyncEnabled(data.autoSyncEnabled);
       setAutoPublishProcessedImages(Boolean(data.autoPublishProcessedImages));
       setBatchIntervalMinutes(String(data.batchIntervalMinutes));
-      setSuccess("Settings saved successfully.");
+      setSuccess("Saved.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
@@ -78,129 +78,95 @@ export default function SettingsPage() {
 
   return (
     <s-page heading="Settings">
-      <s-section heading="Processing preferences">
-        <s-paragraph>
-          Configure automatic batch creation from the Secondary Queue for your store.
-        </s-paragraph>
-      </s-section>
+      <div className="aone-settings-page">
+        {error ? <ErrorBanner message={error} onRetry={() => void loadSettings()} /> : null}
 
-      {error ? (
-        <s-section>
-          <ErrorBanner message={error} onRetry={() => void loadSettings()} />
-        </s-section>
-      ) : null}
-
-      {success ? (
-        <s-section>
-          <s-banner tone="success" heading="Saved">
+        {success ? (
+          <s-banner tone="success">
             <s-paragraph>{success}</s-paragraph>
           </s-banner>
-        </s-section>
-      ) : null}
+        ) : null}
 
-      {validationError ? (
-        <s-section>
-          <s-banner tone="warning" heading="Validation">
+        {validationError ? (
+          <s-banner tone="warning">
             <s-paragraph>{validationError}</s-paragraph>
           </s-banner>
-        </s-section>
-      ) : null}
+        ) : null}
 
-      <s-section heading="Auto Sync">
         {loading ? (
-          <PageSkeleton metricCount={0} tableRows={3} />
+          <PageSkeleton metricCount={0} tableRows={4} />
         ) : (
-          <s-stack direction="block" gap="base">
-            <label className="aone-checkbox-row">
-              <input
-                type="checkbox"
-                checked={autoSyncEnabled}
-                onChange={(e) => setAutoSyncEnabled(e.target.checked)}
-              />
-              <span>
-                <s-text type="strong">Enable Auto Sync</s-text>
-                <s-paragraph>
-                  When enabled, pending Secondary Queue products are converted into processing batches
-                  after the configured wait interval.
-                </s-paragraph>
-              </span>
-            </label>
+          <>
+            <s-section heading="Auto Sync">
+              <div className="aone-settings-stack">
+                <label className="aone-settings-row">
+                  <input
+                    className="aone-settings-checkbox"
+                    type="checkbox"
+                    checked={autoSyncEnabled}
+                    onChange={(e) => setAutoSyncEnabled(e.target.checked)}
+                  />
+                  <span className="aone-settings-row-body">
+                    <span className="aone-settings-row-title">Enable Auto Sync</span>
+                    <span className="aone-settings-row-desc">
+                      Automatically batch queued products.
+                    </span>
+                  </span>
+                </label>
 
-            {autoSyncEnabled ? (
-              <s-banner tone="info" heading="Secondary Queue priority">
-                <s-paragraph>
-                  Pending Secondary Queue products will be processed first, oldest queued first, before
-                  new automatic batches are created.
-                </s-paragraph>
-              </s-banner>
-            ) : null}
+                <div className="aone-settings-field">
+                  <label className="aone-field-label" htmlFor="batch-interval">
+                    Wait before batching (minutes)
+                  </label>
+                  <input
+                    id="batch-interval"
+                    className="aone-input aone-settings-input"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={batchIntervalMinutes}
+                    onChange={(e) => setBatchIntervalMinutes(e.target.value)}
+                    disabled={!autoSyncEnabled}
+                  />
+                  <p className="aone-field-hint">0 = process as soon as a webhook is queued.</p>
+                </div>
+              </div>
+            </s-section>
 
-            <div className="aone-field-group">
-              <label className="aone-field-label" htmlFor="batch-interval">
-                Batch interval (minutes)
-              </label>
-              <input
-                id="batch-interval"
-                className="aone-input"
-                type="number"
-                min={1}
-                value={batchIntervalMinutes}
-                onChange={(e) => setBatchIntervalMinutes(e.target.value)}
-              />
-              <p className="aone-field-hint">
-                How long to wait after the first pending product enters the Secondary Queue before
-                creating an automatic batch (includes all pending products at that time).
-              </p>
-            </div>
+            <s-section heading="Publishing">
+              <div className="aone-settings-stack">
+                <label className="aone-settings-row">
+                  <input
+                    className="aone-settings-checkbox"
+                    type="checkbox"
+                    checked={autoPublishProcessedImages}
+                    onChange={(e) => setAutoPublishProcessedImages(e.target.checked)}
+                  />
+                  <span className="aone-settings-row-body">
+                    <span className="aone-settings-row-title">Auto-publish to Shopify</span>
+                    <span className="aone-settings-row-desc">
+                      Publish each product when processing finishes. Replaces live images.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </s-section>
 
-            <div className="aone-toolbar">
-              <s-button variant="primary" onClick={() => void saveSettings()} disabled={saving || loading}>
-                {saving ? "Saving…" : "Save settings"}
+            <div className="aone-settings-actions">
+              <s-button
+                variant="primary"
+                onClick={() => void saveSettings()}
+                disabled={saving || loading}
+              >
+                {saving ? "Saving…" : "Save"}
               </s-button>
               <s-button onClick={() => void loadSettings()} disabled={saving || loading}>
                 Reset
               </s-button>
             </div>
-          </s-stack>
+          </>
         )}
-      </s-section>
-
-      <s-section heading="Shopify Publishing">
-        {loading ? (
-          <PageSkeleton metricCount={0} tableRows={2} />
-        ) : (
-          <s-stack direction="block" gap="base">
-            <s-paragraph>
-              When enabled, each product is published to Shopify as soon as its processing finishes —
-              you do not wait for the rest of the batch. When disabled, you can review processed
-              images and publish them manually from Jobs.
-            </s-paragraph>
-            <label className="aone-checkbox-row">
-              <input
-                type="checkbox"
-                checked={autoPublishProcessedImages}
-                onChange={(e) => setAutoPublishProcessedImages(e.target.checked)}
-              />
-              <span>
-                <s-text type="strong">Automatically publish processed images to Shopify</s-text>
-              </span>
-            </label>
-            {autoPublishProcessedImages ? (
-              <s-banner tone="warning" heading="Automatic replacement">
-                <s-paragraph>
-                  Processed images will automatically replace the product&apos;s current image
-                  associations after validation and conflict checks.
-                </s-paragraph>
-              </s-banner>
-            ) : null}
-            <div className="aone-toolbar">
-              <s-button variant="primary" onClick={() => void saveSettings()} disabled={saving || loading}>
-                {saving ? "Saving…" : "Save settings"}
-              </s-button>
-            </div>
-          </s-stack>
-        )}
-      </s-section>
+      </div>
     </s-page>
   );
 }

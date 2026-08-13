@@ -22,7 +22,8 @@ type PickerProduct = {
 };
 
 const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
-const PAGE_SIZE = 7;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
+const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_MANUAL_BATCH_LIMIT = 2;
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -43,11 +44,13 @@ export default function JobsPage() {
   const [secondaryPagination, setSecondaryPagination] = useState<PaginationMeta | null>(null);
   const [secondaryStatusFilter, setSecondaryStatusFilter] = useState("");
   const [secondaryPage, setSecondaryPage] = useState(1);
+  const [secondaryPageSize, setSecondaryPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // Batches
   const [batches, setBatches] = useState<Batch[]>([]);
   const [batchesPagination, setBatchesPagination] = useState<PaginationMeta | null>(null);
   const [batchPage, setBatchPage] = useState(1);
+  const [batchPageSize, setBatchPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // Manual batch
   const [pickedProducts, setPickedProducts] = useState<PickerProduct[]>([]);
@@ -63,12 +66,16 @@ export default function JobsPage() {
   const pollInFlight = useRef(false);
   // Keep latest paging in refs so the poll interval doesn't recreate forever.
   const secondaryPageRef = useRef(secondaryPage);
+  const secondaryPageSizeRef = useRef(secondaryPageSize);
   const secondaryStatusFilterRef = useRef(secondaryStatusFilter);
   const batchPageRef = useRef(batchPage);
+  const batchPageSizeRef = useRef(batchPageSize);
   const lastToastedSecondaryFailedRef = useRef<number | null>(null);
   secondaryPageRef.current = secondaryPage;
+  secondaryPageSizeRef.current = secondaryPageSize;
   secondaryStatusFilterRef.current = secondaryStatusFilter;
   batchPageRef.current = batchPage;
+  batchPageSizeRef.current = batchPageSize;
 
   const hasActiveWork = useMemo(() => {
     if (!secondarySummary) return false;
@@ -81,12 +88,14 @@ export default function JobsPage() {
     if (pollInFlight.current) return;
     pollInFlight.current = true;
     const page = secondaryPageRef.current;
+    const pageSize = secondaryPageSizeRef.current;
     const statusFilter = secondaryStatusFilterRef.current;
     const bPage = batchPageRef.current;
+    const bPageSize = batchPageSizeRef.current;
     try {
       const params = new URLSearchParams({
         page: String(page),
-        pageSize: String(PAGE_SIZE),
+        pageSize: String(pageSize),
       });
       if (statusFilter) params.set("status", statusFilter);
 
@@ -95,7 +104,7 @@ export default function JobsPage() {
       const [summaryRes, listRes, batchesRes] = await Promise.all([
         authenticatedFetch(endpoints.secondaryQueueSummary),
         authenticatedFetch(`${endpoints.secondaryQueueList}?${params}`),
-        authenticatedFetch(`${endpoints.batchesList}?page=${bPage}&pageSize=${PAGE_SIZE}`),
+        authenticatedFetch(`${endpoints.batchesList}?page=${bPage}&pageSize=${bPageSize}`),
       ]);
       const summary = await parseApiResponse<SecondaryQueueSummary>(summaryRes);
       const list = await parseApiResponse<{ items: SecondaryQueueItem[]; pagination: PaginationMeta }>(
@@ -122,12 +131,12 @@ export default function JobsPage() {
 
   useEffect(() => {
     void refresh();
-  }, [refresh, secondaryPage, secondaryStatusFilter, batchPage]);
+  }, [refresh, secondaryPage, secondaryPageSize, secondaryStatusFilter, batchPage, batchPageSize]);
 
   const loadBatches = useCallback(
-    async (page: number) => {
+    async (page: number, pageSize = batchPageSizeRef.current) => {
       const response = await authenticatedFetch(
-        `${endpoints.batchesList}?page=${page}&pageSize=${PAGE_SIZE}`,
+        `${endpoints.batchesList}?page=${page}&pageSize=${pageSize}`,
       );
       const payload = await parseApiResponse<{ items: Batch[]; pagination: PaginationMeta }>(response);
       setBatches(payload.items ?? []);
@@ -155,7 +164,7 @@ export default function JobsPage() {
     if (previous === failed) return;
     if (previous === null || failed > previous) {
       showAppToast(
-        `${failed} product(s) could not be processed. Check Skip / failure — usually missing Prompt Configuration.`,
+        `${failed} product(s) could not be processed. Check Skip / failure - usually missing Prompt Configuration.`,
         { isError: true, duration: 8000 },
       );
     }
@@ -214,10 +223,7 @@ export default function JobsPage() {
   return (
     <s-page heading="Jobs">
       <s-section heading="Processing monitor">
-        <s-paragraph>
-          Create manual batches from Shopify products, monitor webhook-driven Secondary Queue intake, and
-          track batch progress. Click a batch row to open its detail page.
-        </s-paragraph>
+        <s-paragraph>Create batches, watch the queue, and track progress.</s-paragraph>
       </s-section>
 
       {error ? (
@@ -267,8 +273,7 @@ export default function JobsPage() {
           </div>
 
           <s-paragraph>
-            Products whose product type has no enabled Prompt Configuration are blocked at create time
-            with an error — configure prompts first under Prompt Management.
+            Each product needs a ready type prompt or Central Prompt. Set these in Prompt Management.
           </s-paragraph>
 
           {pickedProducts.length > 0 ? (
@@ -416,7 +421,7 @@ export default function JobsPage() {
                             className="aone-table-cell-truncate"
                             title={item.skipReason ?? item.failureReason ?? undefined}
                           >
-                            {item.skipReason ?? item.failureReason ?? "—"}
+                            {item.skipReason ?? item.failureReason ?? "-"}
                           </td>
                         </tr>
                       ))}
@@ -427,9 +432,27 @@ export default function JobsPage() {
                     <div className="aone-pagination">
                       <p className="aone-pagination-meta">
                         Page {secondaryPagination.page} of {secondaryPagination.totalPages || 1} ·{" "}
-                        {secondaryPagination.totalItems} items · {PAGE_SIZE} per page
+                        {secondaryPagination.totalItems} items
                       </p>
                       <div className="aone-toolbar">
+                        <label className="aone-page-size" htmlFor="sq-page-size">
+                          <span>Rows</span>
+                          <select
+                            id="sq-page-size"
+                            className="aone-select aone-page-size-select"
+                            value={secondaryPageSize}
+                            onChange={(e) => {
+                              setSecondaryPageSize(Number(e.target.value));
+                              setSecondaryPage(1);
+                            }}
+                          >
+                            {PAGE_SIZE_OPTIONS.map((size) => (
+                              <option key={size} value={size}>
+                                {size}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
                         <s-button
                           disabled={secondaryPage <= 1}
                           onClick={() => setSecondaryPage((p) => Math.max(1, p - 1))}
@@ -517,9 +540,27 @@ export default function JobsPage() {
                 <div className="aone-pagination">
                   <p className="aone-pagination-meta">
                     Page {batchesPagination.page} of {batchesPagination.totalPages || 1} ·{" "}
-                    {batchesPagination.totalItems ?? batches.length} items · {PAGE_SIZE} per page
+                    {batchesPagination.totalItems ?? batches.length} items
                   </p>
                   <div className="aone-toolbar">
+                    <label className="aone-page-size" htmlFor="batches-page-size">
+                      <span>Rows</span>
+                      <select
+                        id="batches-page-size"
+                        className="aone-select aone-page-size-select"
+                        value={batchPageSize}
+                        onChange={(e) => {
+                          setBatchPageSize(Number(e.target.value));
+                          setBatchPage(1);
+                        }}
+                      >
+                        {PAGE_SIZE_OPTIONS.map((size) => (
+                          <option key={size} value={size}>
+                            {size}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <s-button
                       disabled={batchPage <= 1}
                       onClick={() => setBatchPage((p) => Math.max(1, p - 1))}
