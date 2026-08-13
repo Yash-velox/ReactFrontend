@@ -16,46 +16,57 @@ export default function ProductsPage() {
   const authenticatedFetch = useAuthenticatedFetch();
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [runs, setRuns] = useState<SyncRun[]>([]);
   const pollInFlight = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (pollInFlight.current) return;
-    pollInFlight.current = true;
-    try {
-      const [statusRes, runsRes] = await Promise.all([
-        authenticatedFetch(endpoints.syncStatus),
-        authenticatedFetch(`${endpoints.syncRuns}?limit=20`),
-      ]);
-      const statusData = await parseApiResponse<SyncStatus>(statusRes);
-      const runsData = await parseApiResponse<{ items: SyncRun[] }>(runsRes);
-      setStatus(statusData);
-      setRuns(runsData.items ?? []);
-      setError("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sync data");
-    } finally {
-      pollInFlight.current = false;
-      setLoading(false);
-    }
-  }, [authenticatedFetch]);
+  const refresh = useCallback(
+    async (opts?: { force?: boolean }) => {
+      // Background polls skip if a fetch is already running; manual Refresh always runs.
+      if (pollInFlight.current && !opts?.force) return;
+      pollInFlight.current = true;
+      if (opts?.force) setRefreshing(true);
+      try {
+        const [statusRes, runsRes] = await Promise.all([
+          authenticatedFetch(endpoints.syncStatus),
+          authenticatedFetch(`${endpoints.syncRuns}?limit=20`),
+        ]);
+        const statusData = await parseApiResponse<SyncStatus>(statusRes);
+        const runsData = await parseApiResponse<{ items: SyncRun[] }>(runsRes);
+        setStatus(statusData);
+        setRuns(runsData.items ?? []);
+        setError("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load sync data");
+      } finally {
+        pollInFlight.current = false;
+        setRefreshing(false);
+        setLoading(false);
+      }
+    },
+    [authenticatedFetch],
+  );
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
 
   const isSyncActive = status?.latestRun?.status === "RUNNING" || status?.latestRun?.status === "PENDING";
+  const showSyncBusy = syncing || isSyncActive;
 
+  // Poll while the Sync POST is in flight or the latest run is still active,
+  // so counters update even before the Sync request returns.
   useEffect(() => {
-    if (!isSyncActive) return;
+    if (!showSyncBusy) return;
+    void refresh({ force: true });
     const timer = window.setInterval(() => {
       void refresh();
     }, 3000);
     return () => window.clearInterval(timer);
-  }, [isSyncActive, refresh]);
+  }, [showSyncBusy, refresh]);
 
   const syncCatalog = async () => {
     setSyncing(true);
@@ -66,12 +77,13 @@ export default function ProductsPage() {
       const run = await parseApiResponse<SyncRun>(response);
       setMessage(
         run.status === "COMPLETED"
-          ? `Sync completed — ${run.productsSynced} products, ${run.mediaSynced} media items.`
+          ? `Sync completed - ${run.productsSynced} products, ${run.mediaSynced} media items.`
           : `Sync finished with status ${run.status}.`,
       );
-      await refresh();
+      await refresh({ force: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Catalog sync failed");
+      await refresh({ force: true });
     } finally {
       setSyncing(false);
     }
@@ -90,7 +102,7 @@ export default function ProductsPage() {
 
       {error ? (
         <s-section>
-          <ErrorBanner message={error} onRetry={() => void refresh()} />
+          <ErrorBanner message={error} onRetry={() => void refresh({ force: true })} />
         </s-section>
       ) : null}
 
@@ -118,7 +130,7 @@ export default function ProductsPage() {
               />
               <MetricCard
                 label="Latest run"
-                value={latest ? formatWhen(latest.completedAt ?? latest.startedAt) : "—"}
+                value={latest ? formatWhen(latest.completedAt ?? latest.startedAt) : "-"}
                 valueTitle={
                   latest
                     ? formatWhenFull(latest.completedAt ?? latest.startedAt) || undefined
@@ -158,11 +170,11 @@ export default function ProductsPage() {
             )}
 
             <div className="aone-toolbar">
-              <s-button variant="primary" onClick={() => void syncCatalog()} disabled={syncing || isSyncActive}>
-                {syncing || isSyncActive ? "Syncing…" : "Sync products"}
+              <s-button variant="primary" onClick={() => void syncCatalog()} disabled={showSyncBusy}>
+                {showSyncBusy ? "Syncing…" : "Sync products"}
               </s-button>
-              <s-button onClick={() => void refresh()} disabled={syncing}>
-                Refresh
+              <s-button onClick={() => void refresh({ force: true })}>
+                {refreshing ? "Refreshing…" : "Refresh"}
               </s-button>
             </div>
           </s-stack>
@@ -203,7 +215,7 @@ export default function ProductsPage() {
                     <Timestamp value={run.completedAt} />
                   </td>
                   <td className="aone-table-cell-truncate" title={run.errorMessage ?? undefined}>
-                    {run.errorMessage ?? "—"}
+                    {run.errorMessage ?? "-"}
                   </td>
                 </tr>
               ))}
