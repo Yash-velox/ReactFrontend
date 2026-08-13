@@ -70,6 +70,9 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
   const [menuStepId, setMenuStepId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [systemPromptText, setSystemPromptText] = useState("");
+  const [systemPromptDirty, setSystemPromptDirty] = useState(false);
+  const [systemPromptError, setSystemPromptError] = useState("");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuTriggerRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
 
@@ -139,6 +142,13 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
       const response = await authenticatedFetch(endpoints.promptProductType(productTypeId));
       const data = await parseApiResponse<PromptConfigurationDetail>(response);
       setDetail(data);
+      const isSystem = Boolean(data.isCentral) || data.source === "SYSTEM";
+      if (isSystem) {
+        const ordered = [...(data.steps ?? [])].sort((a, b) => a.stepOrder - b.stepOrder);
+        setSystemPromptText(ordered[0]?.promptText ?? "");
+        setSystemPromptDirty(false);
+        setSystemPromptError("");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load configuration");
       setDetail(null);
@@ -272,6 +282,57 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     }
   };
 
+  const saveSystemPrompt = async () => {
+    if (!detail) return;
+    const text = systemPromptText.trim();
+    if (!text) {
+      setSystemPromptError("Prompt text is required.");
+      return;
+    }
+    if (systemPromptText.length > MAX_PROMPT) {
+      setSystemPromptError(`Prompt text must be at most ${MAX_PROMPT} characters.`);
+      return;
+    }
+    setSaving(true);
+    setSystemPromptError("");
+    setError("");
+    const ordered = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+    const existing = ordered[0] ?? null;
+    try {
+      if (existing) {
+        await parseApiResponse(
+          await authenticatedFetch(endpoints.promptStep(existing.id), {
+            method: "PUT",
+            body: JSON.stringify({
+              name: existing.name || "System Prompt",
+              promptText: systemPromptText,
+              isEnabled: true,
+            }),
+          }),
+        );
+      } else {
+        await parseApiResponse(
+          await authenticatedFetch(endpoints.promptProductTypeSteps(detail.productTypeId), {
+            method: "POST",
+            body: JSON.stringify({
+              name: "System Prompt",
+              promptText: systemPromptText,
+              isEnabled: true,
+            }),
+          }),
+        );
+      }
+      setMessageTone("success");
+      setMessage("System Prompt saved.");
+      setSystemPromptDirty(false);
+      await load();
+    } catch (err) {
+      setSystemPromptError(err instanceof Error ? err.message : "Failed to save System Prompt");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const setStepEnabled = async (step: PromptStep, isEnabled: boolean) => {
     setBusyStepId(step.id);
     setError("");
@@ -368,7 +429,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     form.isEnabled !== editingStep.isEnabled;
 
   return (
-    <AonePage heading={isCentral ? "Central Prompt" : "Prompt Configuration"}>
+    <AonePage heading={isCentral ? "System Prompt" : "Prompt Configuration"}>
       {error ? (
         <s-section>
           <ErrorBanner message={error} onRetry={() => void load()} />
@@ -400,8 +461,10 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               </div>
             </div>
             <div className="aone-config-meta-item">
-              <div className="aone-config-meta-label">Total Steps</div>
-              <div className="aone-config-meta-value">{detail.stepCount}</div>
+              <div className="aone-config-meta-label">{isCentral ? "Prompt" : "Total Steps"}</div>
+              <div className="aone-config-meta-value">
+                {isCentral ? (detail.stepCount > 0 ? "Configured" : "Not set") : detail.stepCount}
+              </div>
             </div>
             {!isCentral || canDeleteProductType ? (
               <div className="aone-config-actions">
@@ -441,13 +504,60 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           </div>
 
           {detail.status === "NOT_READY" || (isCentral && detail.stepCount === 0) ? (
-            <s-banner tone="warning" heading="Add a step">
-              <s-paragraph>Turn on at least one step before processing.</s-paragraph>
+            <s-banner tone="warning" heading={isCentral ? "Add a prompt" : "Add a step"}>
+              <s-paragraph>
+                {isCentral
+                  ? "Save a System Prompt before processing products without a ready type prompt."
+                  : "Turn on at least one step before processing."}
+              </s-paragraph>
             </s-banner>
           ) : null}
         </div>
       </s-section>
 
+      {isCentral ? (
+        <s-section heading="System Prompt">
+          <s-stack direction="block" gap="base">
+            <s-paragraph>
+              One shop-wide prompt for this store. Not a sequential workflow.
+            </s-paragraph>
+            <div className="aone-field-group aone-field-group-wide">
+              <label className="aone-field-label" htmlFor="system-prompt-text">
+                Prompt text
+              </label>
+              <textarea
+                id="system-prompt-text"
+                className="aone-input aone-prompt-textarea"
+                rows={12}
+                value={systemPromptText}
+                maxLength={MAX_PROMPT}
+                disabled={saving}
+                onChange={(e) => {
+                  setSystemPromptText(e.target.value);
+                  setSystemPromptDirty(true);
+                }}
+              />
+              <div className="aone-field-hint">
+                {systemPromptText.length.toLocaleString()} / {MAX_PROMPT.toLocaleString()} characters
+              </div>
+            </div>
+            {systemPromptError ? (
+              <s-banner tone="critical">
+                <s-paragraph>{systemPromptError}</s-paragraph>
+              </s-banner>
+            ) : null}
+            <div className="aone-toolbar">
+              <s-button
+                variant="primary"
+                onClick={() => void saveSystemPrompt()}
+                disabled={saving || !systemPromptDirty}
+              >
+                {saving ? "Saving…" : "Save System Prompt"}
+              </s-button>
+            </div>
+          </s-stack>
+        </s-section>
+      ) : (
       <s-section heading="Sequential prompt steps">
         {steps.length === 0 ? (
           <EmptyState
@@ -539,8 +649,9 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           </>
         )}
       </s-section>
+      )}
 
-      {menuStepId && menuPos
+      {!isCentral && menuStepId && menuPos
         ? (() => {
             const step = steps.find((s) => s.id === menuStepId);
             if (!step) return null;
@@ -589,7 +700,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           })()
         : null}
 
-      {stepModalOpen ? (
+      {!isCentral && stepModalOpen ? (
         <LockedDialog
           open={stepModalOpen}
           title={editingStep ? "Edit Prompt Step" : "Add Prompt Step"}

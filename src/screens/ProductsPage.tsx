@@ -275,7 +275,6 @@ export default function ProductsPage() {
                 { label: "Type", value: selectedRun.runType },
                 { label: "Products synced", value: selectedRun.productsSynced },
                 { label: "Media synced", value: selectedRun.mediaSynced },
-                { label: "Cursor", value: detailText(selectedRun.cursor) },
                 { label: "Error", value: detailText(selectedRun.errorMessage) },
                 { label: "Started", value: detailText(formatWhenFull(selectedRun.startedAt)) },
                 { label: "Completed", value: detailText(formatWhenFull(selectedRun.completedAt)) },

@@ -170,7 +170,7 @@ export default function PromptsPage() {
     <AonePage heading="Prompt Management">
       <s-section>
         <s-paragraph>
-          Set prompts by product type. Central Prompt covers the rest.
+          Set prompts by product type. System Prompt covers the rest.
         </s-paragraph>
       </s-section>
 
@@ -190,8 +190,8 @@ export default function PromptsPage() {
 
       <s-section heading="Product types">
         <s-stack direction="block" gap="base">
-          <div className="aone-toolbar aone-toolbar-spread">
-            <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.75rem" }}>
+          <div className="aone-toolbar aone-toolbar-spread aone-prompts-toolbar">
+            <div className="aone-filter-bar">
               <input
                 className="aone-input"
                 type="search"
@@ -199,7 +199,6 @@ export default function PromptsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search product type"
-                style={{ minWidth: "14rem" }}
               />
               <select
                 className="aone-select"
@@ -237,7 +236,7 @@ export default function PromptsPage() {
                 <tr>
                   <th>Product Type</th>
                   <th>Source</th>
-                  <th>Prompt Steps</th>
+                  <th>Prompts</th>
                   <th>Status</th>
                   <th>Last Updated</th>
                   <th>Actions</th>
@@ -257,9 +256,13 @@ export default function PromptsPage() {
                         <StatusBadge status={item.source} />
                       </td>
                       <td>
-                        {item.stepCount === 0
-                          ? "0 Steps"
-                          : `${item.stepCount} Step${item.stepCount === 1 ? "" : "s"}`}
+                        {isCentral
+                          ? item.stepCount > 0
+                            ? "Single prompt"
+                            : "Not set"
+                          : item.stepCount === 0
+                            ? "0 Steps"
+                            : `${item.stepCount} Step${item.stepCount === 1 ? "" : "s"}`}
                       </td>
                       <td>
                         <span title={statusLabel(item.status)}>

@@ -276,7 +276,7 @@ export default function JobsPage() {
           </div>
 
           <s-paragraph>
-            Each product needs a ready type prompt or Central Prompt. Set these in Prompt Management.
+            Each product needs a ready type prompt or System Prompt. Set these in Prompt Management.
           </s-paragraph>
 
           {pickedProducts.length > 0 ? (

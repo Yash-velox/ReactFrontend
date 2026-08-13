@@ -725,36 +725,51 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
 
         {activeSnapshotMedia.length > 0 ? (
           <s-section heading={activeVersionNumber != null ? `Active snapshot · v${activeVersionNumber}` : "Active snapshot"}>
-            <s-paragraph>
-              {`Images in the active product version${activeVersionNumber != null ? ` v${activeVersionNumber}` : ""} (${activeSnapshotMedia.length}).`}
-            </s-paragraph>
-            <div className="aone-media-grid aone-media-grid-lg">
-              {activeSnapshotMedia.map((tile) => (
-                <figure key={tile.key} className="aone-media-tile" title={tile.title}>
-                  {tile.cdnUrl ? (
-                    <img
-                      src={tile.cdnUrl}
-                      alt={tile.title}
-                      className="aone-media-tile-img"
-                    />
-                  ) : (
-                    <div className="aone-media-tile-fallback">No preview</div>
-                  )}
-                  <figcaption className="aone-media-tile-caption">
-                    <span className="aone-media-tile-type">{tile.label}</span>
-                    {tile.subtitle ? (
-                      <span className="aone-media-tile-filename" title={tile.title}>
-                        {tile.subtitle}
-                      </span>
-                    ) : null}
-                    {tile.isGenerated ? <span className="aone-phase-chip">Generated</span> : null}
-                    {tile.isOriginal ? <span className="aone-phase-chip">Original</span> : null}
-                    {typeof tile.fileSizeBytes === "number" ? (
-                      <span className="aone-field-hint">{Math.round(tile.fileSizeBytes / 1024)} KB</span>
-                    ) : null}
-                  </figcaption>
-                </figure>
-              ))}
+            <div className="aone-snapshot">
+              <p className="aone-snapshot-intro">
+                {`Images currently live on this product from version${activeVersionNumber != null ? ` v${activeVersionNumber}` : ""} · ${activeSnapshotMedia.length} image${activeSnapshotMedia.length === 1 ? "" : "s"}`}
+              </p>
+              <div className="aone-snapshot-gallery">
+                {activeSnapshotMedia.map((tile) => (
+                  <figure
+                    key={tile.key}
+                    className={`aone-snapshot-card${tile.isGenerated ? " is-generated" : ""}${tile.isOriginal ? " is-original" : ""}`}
+                    title={tile.title}
+                  >
+                    <div className="aone-snapshot-card-media">
+                      {tile.cdnUrl ? (
+                        <img
+                          src={tile.cdnUrl}
+                          alt={tile.title}
+                          className="aone-snapshot-card-img"
+                        />
+                      ) : (
+                        <div className="aone-snapshot-card-fallback">No preview</div>
+                      )}
+                      {tile.isGenerated || tile.isOriginal ? (
+                        <span
+                          className={`aone-snapshot-badge${tile.isGenerated ? " is-generated" : " is-original"}`}
+                        >
+                          {tile.isGenerated ? "Generated" : "Original"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <figcaption className="aone-snapshot-card-meta">
+                      <span className="aone-snapshot-card-label">{tile.label}</span>
+                      {tile.subtitle ? (
+                        <span className="aone-snapshot-card-filename" title={tile.title}>
+                          {tile.subtitle}
+                        </span>
+                      ) : null}
+                      {typeof tile.fileSizeBytes === "number" ? (
+                        <span className="aone-snapshot-card-size">
+                          {Math.round(tile.fileSizeBytes / 1024)} KB
+                        </span>
+                      ) : null}
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
             </div>
           </s-section>
         ) : null}

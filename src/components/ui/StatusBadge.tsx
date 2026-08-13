@@ -19,7 +19,7 @@ const STATUS_MAP: Record<string, StatusConfig> = {
   NOT_CONFIGURED: { tone: "caution", label: "Not Configured" },
   NOT_READY: { tone: "caution", label: "Not Ready" },
   SHOPIFY: { tone: "info", label: "Shopify" },
-  SYSTEM: { tone: "success", label: "Central" },
+  SYSTEM: { tone: "success", label: "System" },
 
   // Secondary queue
   CLAIMED: { tone: "info", label: "Claimed" },

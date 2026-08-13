@@ -545,12 +545,43 @@ button.aone-stepper-hit:focus-visible {
 .aone-toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--aone-space-2);
+  gap: var(--aone-space-3);
   align-items: center;
 }
 
 .aone-toolbar-spread {
   justify-content: space-between;
+}
+
+/* Prompts list: search + status filter on one row */
+.aone-prompts-toolbar {
+  flex-wrap: wrap;
+  gap: var(--aone-space-3);
+  align-items: center;
+}
+
+.aone-filter-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--aone-space-3);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.aone-filter-bar .aone-input {
+  width: auto;
+  flex: 1 1 16rem;
+  min-width: 12rem;
+  max-width: 24rem;
+}
+
+.aone-filter-bar .aone-select {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 9rem;
+  max-width: 12rem;
 }
 
 /* Monospace / GIDs */
@@ -791,14 +822,27 @@ button.aone-stepper-hit:focus-visible {
 .aone-page-size {
   display: inline-flex;
   align-items: center;
-  gap: var(--aone-space-2);
+  gap: var(--aone-space-3);
+  margin-inline-end: var(--aone-space-2);
   font-size: 13px;
   color: var(--aone-text-subdued);
 }
 
 .aone-page-size-select {
   width: auto;
-  min-width: 4.5rem;
+  min-width: 5rem;
+  margin: 0;
+}
+
+/* Keep selects from sitting flush against neighboring buttons/controls */
+.aone-toolbar .aone-select,
+.aone-toolbar .aone-page-size,
+.aone-filter-bar .aone-select {
+  margin-inline-end: 2px;
+}
+
+.aone-toolbar s-button + s-button {
+  margin-inline-start: 2px;
 }
 
 /* Detail panel */
@@ -1743,6 +1787,142 @@ a.aone-overflow-item:visited {
   font-size: 10px;
   line-height: 1.3;
   color: var(--aone-text-subdued);
+}
+
+/* Active snapshot gallery — wider cards, clearer badges */
+.aone-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--aone-space-4);
+  width: 100%;
+}
+
+.aone-snapshot-intro {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--aone-text-subdued);
+}
+
+.aone-snapshot-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--aone-space-4);
+  width: 100%;
+}
+
+.aone-snapshot-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
+  background: var(--aone-bg);
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+}
+
+.aone-snapshot-card.is-generated {
+  border-color: color-mix(in srgb, var(--aone-focus) 28%, var(--aone-border));
+}
+
+.aone-snapshot-card-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background:
+    linear-gradient(180deg, #fafafa 0%, #f3f3f3 100%);
+}
+
+.aone-snapshot-card-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.aone-snapshot-card-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 12px;
+  color: var(--aone-text-subdued);
+}
+
+.aone-snapshot-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(6px);
+}
+
+.aone-snapshot-badge.is-generated {
+  color: #004299;
+  background: rgba(232, 242, 255, 0.95);
+  border-color: #b5d1f8;
+}
+
+.aone-snapshot-badge.is-original {
+  color: #4a4a4a;
+  background: rgba(255, 255, 255, 0.94);
+  border-color: var(--aone-border);
+}
+
+.aone-snapshot-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 12px;
+  min-width: 0;
+  border-top: 1px solid var(--aone-border);
+  background: var(--aone-bg);
+}
+
+.aone-snapshot-card-label {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--aone-text);
+}
+
+.aone-snapshot-card-filename {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--aone-text-subdued);
+}
+
+.aone-snapshot-card-size {
+  font-size: 11px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  color: var(--aone-text-subdued);
+}
+
+@media (max-width: 720px) {
+  .aone-snapshot-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--aone-space-3);
+  }
 }
 
 .aone-versions-compare {
