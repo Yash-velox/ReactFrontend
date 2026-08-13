@@ -15,7 +15,9 @@ type Props = {
 
 /** Read-only modal that shows every field for a truncated table row. */
 export default function RowDetailDialog({ open, title, fields, onClose }: Props) {
-  const { id: modalId, ref: modalRef, dismiss } = useModalOverlay(open, onClose);
+  const { id: modalId, ref: modalRef, dismiss } = useModalOverlay(open, onClose, {
+    closeOnOutsideClick: false,
+  });
 
   if (!open) return null;
 

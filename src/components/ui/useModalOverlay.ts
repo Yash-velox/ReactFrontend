@@ -9,10 +9,11 @@ const HOST_DISMISS_TIMEOUT_MS = 350;
 
 export type UseModalOverlayOptions = {
   /**
-   * When false, backdrop / host-initiated hide is ignored and the modal is
-   * shown again. The native X button still closes (it calls `hideOverlay`).
-   * Explicit `dismiss()` (Close/Cancel) always closes.
-   * Default: true.
+   * When false (default), backdrop / host outside-click hide is ignored and the
+   * modal is shown again. Close via the header X (`hideOverlay`) or `dismiss()`
+   * (Close/Cancel buttons) still works.
+   *
+   * Set true only for disposable modals that should dismiss on outside click.
    */
   closeOnOutsideClick?: boolean;
 };
@@ -34,7 +35,8 @@ export function useModalOverlay(
   onDismiss: () => void,
   options: UseModalOverlayOptions = {},
 ) {
-  const closeOnOutsideClick = options.closeOnOutsideClick !== false;
+  // Default locked: only Close / X closes. Opt in to outside-click with true.
+  const closeOnOutsideClick = options.closeOnOutsideClick === true;
   const reactId = useId();
   const id = useMemo(() => `aone-modal-${reactId.replace(/[^a-zA-Z0-9_-]/g, "")}`, [reactId]);
 
@@ -43,9 +45,15 @@ export function useModalOverlay(
   dismissRef.current = onDismiss;
   const fallbackTimer = useRef<number | undefined>(undefined);
   const intentionalDismissRef = useRef(false);
+  const reopenTimers = useRef<number[]>([]);
 
   const ref = useCallback((node: HTMLElement | null) => {
     setElement(node as OverlayElement | null);
+  }, []);
+
+  const clearReopenTimers = useCallback(() => {
+    for (const t of reopenTimers.current) window.clearTimeout(t);
+    reopenTimers.current = [];
   }, []);
 
   useEffect(() => {
@@ -59,18 +67,31 @@ export function useModalOverlay(
     if (nativeHide && !closeOnOutsideClick) {
       element.hideOverlay = () => {
         intentionalDismissRef.current = true;
+        clearReopenTimers();
         nativeHide();
       };
     }
 
+    const forceShow = () => {
+      if (cancelled || intentionalDismissRef.current) return;
+      element.showOverlay?.();
+    };
+
     const handleHide = () => {
       if (!closeOnOutsideClick && !intentionalDismissRef.current) {
-        // Outside click / host dismiss — keep the dialog open without waiting a tick
-        // (reduces close-then-reopen flicker).
-        element.showOverlay?.();
+        // Outside click / host dismiss — keep the dialog open.
+        // Re-show immediately and again after host finish (Admin can race the hide).
+        forceShow();
+        clearReopenTimers();
+        reopenTimers.current = [
+          window.setTimeout(forceShow, 0),
+          window.setTimeout(forceShow, 40),
+          window.setTimeout(forceShow, 120),
+        ];
         return;
       }
       intentionalDismissRef.current = false;
+      clearReopenTimers();
       dismissRef.current();
     };
     element.addEventListener("hide", handleHide);
@@ -90,12 +111,14 @@ export function useModalOverlay(
       if (nativeHide) {
         element.hideOverlay = nativeHide;
       }
+      clearReopenTimers();
       window.clearTimeout(fallbackTimer.current);
     };
-  }, [open, element, closeOnOutsideClick]);
+  }, [open, element, closeOnOutsideClick, clearReopenTimers]);
 
   const dismiss = useCallback(() => {
     intentionalDismissRef.current = true;
+    clearReopenTimers();
     if (!element?.hideOverlay) {
       intentionalDismissRef.current = false;
       dismissRef.current();
@@ -108,7 +131,7 @@ export function useModalOverlay(
       intentionalDismissRef.current = false;
       dismissRef.current();
     }, HOST_DISMISS_TIMEOUT_MS);
-  }, [element]);
+  }, [element, clearReopenTimers]);
 
   return { id, ref, dismiss };
 }
