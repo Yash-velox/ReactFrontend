@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DataTable from "../components/ui/DataTable";
+import AonePage from "../components/ui/AonePage";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import MetricCard from "../components/ui/MetricCard";
@@ -223,7 +224,7 @@ export default function JobsPage() {
   };
 
   return (
-    <s-page inline-size="large" heading="Jobs">
+    <AonePage heading="Jobs">
       <s-section heading="Processing monitor">
         <s-paragraph>Create batches, watch the queue, and track progress.</s-paragraph>
       </s-section>
@@ -624,6 +625,6 @@ export default function JobsPage() {
             : []
         }
       />
-    </s-page>
+    </AonePage>
   );
 }

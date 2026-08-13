@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import AonePage from "../components/ui/AonePage";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
@@ -573,15 +574,15 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
 
   if (!productId) {
     return (
-      <s-page inline-size="large" heading="Product Versions">
+      <AonePage heading="Product Versions">
         <ErrorBanner message="Missing product id." />
         <s-button onClick={() => navigateApp("/products/versions")}>Back to search</s-button>
-      </s-page>
+      </AonePage>
     );
   }
 
   return (
-    <s-page inline-size="large" heading={heading}>
+    <AonePage heading={heading}>
       <div className="aone-versions-page">
         <div className="aone-toolbar aone-toolbar-spread">
           <div className="aone-toolbar">
@@ -899,6 +900,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </s-stack>
         ) : null}
       </ConfirmDialog>
-    </s-page>
+    </AonePage>
   );
 }

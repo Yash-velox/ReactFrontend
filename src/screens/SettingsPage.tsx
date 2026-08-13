@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import ErrorBanner from "../components/ui/ErrorBanner";
+import AonePage from "../components/ui/AonePage";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
@@ -77,7 +78,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <s-page inline-size="large" heading="Settings">
+    <AonePage heading="Settings">
       <div className="aone-settings-page">
         {error ? <ErrorBanner message={error} onRetry={() => void loadSettings()} /> : null}
 
@@ -167,6 +168,6 @@ export default function SettingsPage() {
           </>
         )}
       </div>
-    </s-page>
+    </AonePage>
   );
 }

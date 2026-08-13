@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DataTable from "../components/ui/DataTable";
+import AonePage from "../components/ui/AonePage";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import PageSkeleton from "../components/ui/PageSkeleton";
@@ -159,14 +160,14 @@ export default function PromptsPage() {
 
   if (loading && items.length === 0) {
     return (
-      <s-page inline-size="large" heading="Prompt Management">
+      <AonePage heading="Prompt Management">
         <PageSkeleton />
-      </s-page>
+      </AonePage>
     );
   }
 
   return (
-    <s-page inline-size="large" heading="Prompt Management">
+    <AonePage heading="Prompt Management">
       <s-section>
         <s-paragraph>
           Set prompts by product type. Central Prompt covers the rest.
@@ -338,6 +339,6 @@ export default function PromptsPage() {
           </s-stack>
         </s-modal>
       ) : null}
-    </s-page>
+    </AonePage>
   );
 }

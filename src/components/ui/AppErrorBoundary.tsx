@@ -1,3 +1,4 @@
+import AonePage from "./AonePage";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 type Props = {
@@ -32,7 +33,7 @@ export class AppErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
 
     return (
-      <s-page inline-size="large" heading="Something went wrong">
+      <AonePage heading="Something went wrong">
         <s-section>
           <s-box padding="base" borderWidth="base" borderRadius="base">
             <s-stack direction="block" gap="base">
@@ -48,7 +49,7 @@ export class AppErrorBoundary extends Component<Props, State> {
             </s-stack>
           </s-box>
         </s-section>
-      </s-page>
+      </AonePage>
     );
   }
 }

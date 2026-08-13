@@ -10,7 +10,8 @@ const HOST_DISMISS_TIMEOUT_MS = 350;
 export type UseModalOverlayOptions = {
   /**
    * When false, backdrop / host-initiated hide is ignored and the modal is
-   * shown again. Only an explicit `dismiss()` call (Cancel) or unmount closes it.
+   * shown again. The native X button still closes (it calls `hideOverlay`).
+   * Explicit `dismiss()` (Close/Cancel) always closes.
    * Default: true.
    */
   closeOnOutsideClick?: boolean;
@@ -23,6 +24,10 @@ export type UseModalOverlayOptions = {
  * When embedded in Admin the element delegates closing to the App Bridge host via
  * `modal.hide(element.id)`, so the modal needs a stable non-empty `id` or the host
  * cannot match it and the dialog stays open.
+ *
+ * Outside-click and the header X both surface as a `hide` event. Polaris X calls
+ * `hideOverlay()` on the element; backdrop dismiss usually does not. We mark
+ * `hideOverlay` calls as intentional so X can close while outside clicks stay open.
  */
 export function useModalOverlay(
   open: boolean,
@@ -47,12 +52,22 @@ export function useModalOverlay(
     if (!open || !element) return;
 
     let cancelled = false;
+    const nativeHide = element.hideOverlay?.bind(element);
+
+    // X button → hideOverlay → intentional close.
+    // Backdrop / Esc from host → hide event only → reopen when locked.
+    if (nativeHide && !closeOnOutsideClick) {
+      element.hideOverlay = () => {
+        intentionalDismissRef.current = true;
+        nativeHide();
+      };
+    }
+
     const handleHide = () => {
       if (!closeOnOutsideClick && !intentionalDismissRef.current) {
-        // Outside click / Esc from host — keep the dialog open.
-        queueMicrotask(() => {
-          if (!cancelled) element.showOverlay?.();
-        });
+        // Outside click / host dismiss — keep the dialog open without waiting a tick
+        // (reduces close-then-reopen flicker).
+        element.showOverlay?.();
         return;
       }
       intentionalDismissRef.current = false;
@@ -72,6 +87,9 @@ export function useModalOverlay(
     return () => {
       cancelled = true;
       element.removeEventListener("hide", handleHide);
+      if (nativeHide) {
+        element.hideOverlay = nativeHide;
+      }
       window.clearTimeout(fallbackTimer.current);
     };
   }, [open, element, closeOnOutsideClick]);

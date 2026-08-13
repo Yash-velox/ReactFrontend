@@ -3,6 +3,7 @@ import GettingStartedStepper, {
   type SetupStep,
   type SetupStepStatus,
 } from "../components/ui/GettingStartedStepper";
+import AonePage from "../components/ui/AonePage";
 import MetricCard from "../components/ui/MetricCard";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import { getStatusConfig } from "../components/ui/StatusBadge";
@@ -200,7 +201,7 @@ export default function HomePage() {
   }, [health, data]);
 
   return (
-    <s-page inline-size="large" heading="Dashboard">
+    <AonePage heading="Dashboard">
       <s-section heading="Getting started">
         <div className="aone-stepper-status-row">
           <s-text>Service</s-text>
@@ -241,6 +242,6 @@ export default function HomePage() {
           </div>
         )}
       </s-section>
-    </s-page>
+    </AonePage>
   );
 }

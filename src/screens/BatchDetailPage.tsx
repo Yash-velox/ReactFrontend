@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DataTable from "../components/ui/DataTable";
+import AonePage from "../components/ui/AonePage";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import ImageCompareDialog from "../components/ui/ImageCompareDialog";
@@ -398,33 +399,33 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
 
   if (!batchId) {
     return (
-      <s-page inline-size="large" heading="Batch detail">
+      <AonePage heading="Batch detail">
         <s-section>
           <ErrorBanner message="Missing batch id." />
           <div className="aone-toolbar" style={{ marginTop: "0.75rem" }}>
             <s-button onClick={() => navigateApp("/jobs")}>← Back to Jobs</s-button>
           </div>
         </s-section>
-      </s-page>
+      </AonePage>
     );
   }
 
   if (loading && !batch) {
     return (
-      <s-page inline-size="large" heading={heading}>
+      <AonePage heading={heading}>
         <s-section>
           <div className="aone-toolbar" style={{ marginBottom: "0.75rem" }}>
             <s-button onClick={() => navigateApp("/jobs")}>← Back to Jobs</s-button>
           </div>
           <PageSkeleton metricCount={0} tableRows={4} />
         </s-section>
-      </s-page>
+      </AonePage>
     );
   }
 
   if (!batch) {
     return (
-      <s-page inline-size="large" heading="Batch detail">
+      <AonePage heading="Batch detail">
         <s-section>
           <ErrorBanner
             message={error || "Batch not found"}
@@ -434,12 +435,12 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
             <s-button onClick={() => navigateApp("/jobs")}>← Back to Jobs</s-button>
           </div>
         </s-section>
-      </s-page>
+      </AonePage>
     );
   }
 
   return (
-    <s-page inline-size="large" heading={heading}>
+    <AonePage heading={heading}>
       <s-section>
         <div className="aone-detail-header">
           <s-stack direction="block" gap="small">
@@ -838,6 +839,6 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
             : []
         }
       />
-    </s-page>
+    </AonePage>
   );
 }

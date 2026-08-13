@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import DataTable from "../components/ui/DataTable";
+import AonePage from "../components/ui/AonePage";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import PageSkeleton from "../components/ui/PageSkeleton";
@@ -90,7 +91,7 @@ export default function ProductVersionsHubPage() {
   }, [load]);
 
   return (
-    <s-page inline-size="large" heading="Product Versions">
+    <AonePage heading="Product Versions">
       <s-stack direction="block" gap="base">
         <s-paragraph>
           Search products that have been published through this app. Open a product to revert a
@@ -189,6 +190,6 @@ export default function ProductVersionsHubPage() {
           </DataTable>
         )}
       </s-stack>
-    </s-page>
+    </AonePage>
   );
 }

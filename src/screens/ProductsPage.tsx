@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import DataTable from "../components/ui/DataTable";
+import AonePage from "../components/ui/AonePage";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
 import MetricCard from "../components/ui/MetricCard";
@@ -118,7 +119,7 @@ export default function ProductsPage() {
       : null;
 
   return (
-    <s-page inline-size="large" heading="Products">
+    <AonePage heading="Products">
       <s-section heading="Catalog sync">
         <s-paragraph>
           Update your product list and image details from Shopify. Photos stay in your store — this
@@ -173,9 +174,7 @@ export default function ProductsPage() {
                 detail={`${liveProducts} products · ${liveMedia} media so far`}
                 value={progressValue}
               />
-            ) : null}
-
-            {latest ? (
+            ) : latest ? (
               <div className="aone-stat-grid">
                 <div className="aone-stat">
                   <span className="aone-stat-label">Products synced</span>
@@ -287,6 +286,6 @@ export default function ProductsPage() {
             : []
         }
       />
-    </s-page>
+    </AonePage>
   );
 }

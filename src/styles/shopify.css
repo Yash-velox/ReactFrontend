@@ -26,6 +26,17 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+/* Let Polaris large pages use the full Admin content width (base caps ~966px). */
+s-page {
+  display: block;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 body {

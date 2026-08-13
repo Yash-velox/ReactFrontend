@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
+import AonePage from "../components/ui/AonePage";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
@@ -216,12 +217,8 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
 
   const validateForm = (): boolean => {
     const name = form.name.trim();
-    if (!name) {
-      setFormError("Step name is required.");
-      return false;
-    }
     if (name.length > MAX_NAME) {
-      setFormError(`Step name must be at most ${MAX_NAME} characters.`);
+      setFormError(`Prompt title must be at most ${MAX_NAME} characters.`);
       return false;
     }
     if (!form.promptText.trim()) {
@@ -241,13 +238,14 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     setSaving(true);
     setFormError("");
     setError("");
+    const stepName = form.name.trim() || "Untitled prompt";
     try {
       if (editingStep) {
         await parseApiResponse(
           await authenticatedFetch(endpoints.promptStep(editingStep.id), {
             method: "PUT",
             body: JSON.stringify({
-              name: form.name.trim(),
+              name: stepName,
               promptText: form.promptText,
               isEnabled: form.isEnabled,
             }),
@@ -260,7 +258,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           await authenticatedFetch(endpoints.promptProductTypeSteps(detail.productTypeId), {
             method: "POST",
             body: JSON.stringify({
-              name: form.name.trim(),
+              name: stepName,
               promptText: form.promptText,
               isEnabled: form.isEnabled,
             }),
@@ -345,22 +343,22 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
 
   if (loading && !detail) {
     return (
-      <s-page inline-size="large" heading="Prompt Configuration">
+      <AonePage heading="Prompt Configuration">
         <PageSkeleton />
-      </s-page>
+      </AonePage>
     );
   }
 
   if (!detail) {
     return (
-      <s-page inline-size="large" heading="Prompt Configuration">
+      <AonePage heading="Prompt Configuration">
         <s-section>
           <ErrorBanner message={error || "Configuration not found"} />
           <div className="aone-toolbar" style={{ marginTop: "0.75rem" }}>
             <s-button onClick={() => navigateApp("/prompts")}>← Back to Prompts</s-button>
           </div>
         </s-section>
-      </s-page>
+      </AonePage>
     );
   }
 
@@ -374,7 +372,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     form.isEnabled !== editingStep.isEnabled;
 
   return (
-    <s-page inline-size="large" heading={isCentral ? "Central Prompt" : "Prompt Configuration"}>
+    <AonePage heading={isCentral ? "Central Prompt" : "Prompt Configuration"}>
       {error ? (
         <s-section>
           <ErrorBanner message={error} onRetry={() => void load()} />
@@ -471,7 +469,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               <thead>
                 <tr>
                   <th className="aone-col-order">Order</th>
-                  <th>Step Name</th>
+                  <th>Prompt title</th>
                   <th>Prompt Preview</th>
                   <th className="aone-col-status">Status</th>
                   <th className="aone-col-actions">Actions</th>
@@ -604,7 +602,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           <s-stack direction="block" gap="base">
             <div className="aone-field-group">
               <label className="aone-field-label" htmlFor="step-name">
-                Step Name
+                Prompt title
               </label>
               <input
                 id="step-name"
@@ -612,8 +610,10 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 value={form.name}
                 maxLength={MAX_NAME}
                 disabled={saving}
+                placeholder="Optional — defaults to Untitled prompt"
                 onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               />
+              <div className="aone-field-hint">Optional. Leave blank to use “Untitled prompt”.</div>
             </div>
             <div className="aone-field-group aone-field-group-wide">
               <label className="aone-field-label" htmlFor="step-prompt">
@@ -648,7 +648,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
             ) : null}
             <div className="aone-toolbar">
               <s-button onClick={stepModal.dismiss} disabled={saving}>
-                Cancel
+                Close
               </s-button>
               <s-button
                 variant="primary"
@@ -696,7 +696,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           detailStep
             ? [
                 { label: "Order", value: detailStep.stepOrder },
-                { label: "Step name", value: detailStep.name },
+                { label: "Prompt title", value: detailStep.name },
                 { label: "Status", value: detailStep.isEnabled ? "ENABLED" : "DISABLED" },
                 {
                   label: "Variables",
@@ -712,6 +712,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
             : []
         }
       />
-    </s-page>
+    </AonePage>
   );
 }
