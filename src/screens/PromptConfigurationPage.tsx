@@ -369,12 +369,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
               <div className="aone-config-meta-label">Total Steps</div>
               <div className="aone-config-meta-value">{detail.stepCount}</div>
             </div>
-            {isCentral ? (
-              <div className="aone-config-meta-item">
-                <div className="aone-config-meta-label">Availability</div>
-                <div className="aone-config-meta-value">Always on (cannot disable)</div>
-              </div>
-            ) : (
+            {!isCentral ? (
               <label className="aone-config-toggle">
                 <input
                   type="checkbox"
@@ -384,25 +379,12 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 />
                 <span>Prompt Configuration: {detail.isEnabled ? "Enabled" : "Disabled"}</span>
               </label>
-            )}
+            ) : null}
           </div>
 
-          {isCentral ? (
-            <s-banner tone="info" heading="Shop-level fallback">
-              <s-paragraph>
-                Used automatically when a product has no product type, or its product-type prompt is
-                missing, disabled, or has no enabled steps.
-              </s-paragraph>
-            </s-banner>
-          ) : null}
-
-          {detail.status === "NOT_READY" ? (
-            <s-banner tone="warning" heading="Not ready for processing">
-              <s-paragraph>
-                {isCentral
-                  ? "Central Prompt has no enabled steps. Enable at least one step so products without a ready product-type prompt can process."
-                  : "This configuration is enabled but every step is disabled. Enable at least one step before processing products of this type."}
-              </s-paragraph>
+          {detail.status === "NOT_READY" || (isCentral && detail.stepCount === 0) ? (
+            <s-banner tone="warning" heading="Add a step">
+              <s-paragraph>Turn on at least one step before processing.</s-paragraph>
             </s-banner>
           ) : null}
         </div>

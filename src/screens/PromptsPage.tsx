@@ -171,8 +171,7 @@ export default function PromptsPage() {
     <s-page heading="Prompt Management">
       <s-section>
         <s-paragraph>
-          Configure sequential image-processing prompts per Shopify product type. When a type has no
-          ready prompt, processing uses the always-on Central Prompt.
+          Set prompts by product type. Central Prompt covers the rest.
         </s-paragraph>
       </s-section>
 
@@ -255,11 +254,6 @@ export default function PromptsPage() {
                   <tr key={item.id}>
                     <td>
                       <strong>{item.name}</strong>
-                      {isCentral ? (
-                        <div className="aone-field-hint">
-                          Fallback for missing, disabled, or unconfigured product types
-                        </div>
-                      ) : null}
                     </td>
                     <td>
                       <StatusBadge status={item.source} />
@@ -273,9 +267,6 @@ export default function PromptsPage() {
                       <span title={statusLabel(item.status)}>
                         <StatusBadge status={item.status} />
                       </span>
-                      {item.status === "NOT_READY" ? (
-                        <div className="aone-field-hint">All steps are disabled</div>
-                      ) : null}
                     </td>
                     <td>
                       <Timestamp value={item.updatedAt} />
