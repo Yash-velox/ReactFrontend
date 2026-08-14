@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DataTable from "../components/ui/DataTable";
 import AonePage from "../components/ui/AonePage";
 import EmptyState from "../components/ui/EmptyState";
@@ -23,10 +23,11 @@ type PickerProduct = {
   title?: string;
 };
 
-const ACTIVE_BATCH_STATUSES = new Set(["QUEUED", "PROCESSING"]);
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100] as const;
 const DEFAULT_PAGE_SIZE = 10;
 const DEFAULT_MANUAL_BATCH_LIMIT = 2;
+/** Quiet background refresh so webhook Pending rows appear without a full reload. */
+const JOBS_POLL_MS = 4000;
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -79,13 +80,6 @@ export default function JobsPage() {
   secondaryStatusFilterRef.current = secondaryStatusFilter;
   batchPageRef.current = batchPage;
   batchPageSizeRef.current = batchPageSize;
-
-  const hasActiveWork = useMemo(() => {
-    if (!secondarySummary) return false;
-    const secondaryActive = secondarySummary.pending > 0 || secondarySummary.claimed > 0;
-    const batchesActive = batches.some((b) => ACTIVE_BATCH_STATUSES.has(b.status));
-    return secondaryActive || batchesActive;
-  }, [secondarySummary, batches]);
 
   const refresh = useCallback(async () => {
     if (pollInFlight.current) return;
@@ -149,12 +143,20 @@ export default function JobsPage() {
   );
 
   useEffect(() => {
-    if (!hasActiveWork) return;
-    const timer = window.setInterval(() => {
+    const tick = () => {
+      if (document.visibilityState === "hidden") return;
       void refresh();
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [hasActiveWork, refresh]);
+    };
+    const timer = window.setInterval(tick, JOBS_POLL_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [refresh]);
 
   // Surface Secondary Queue prompt/config failures as a toast (table still shows details).
   useEffect(() => {
