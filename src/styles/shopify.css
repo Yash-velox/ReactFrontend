@@ -84,7 +84,6 @@ textarea:focus-visible {
   font-weight: 550;
   letter-spacing: 0.02em;
   color: var(--aone-text-subdued);
-  text-transform: uppercase;
 }
 
 .aone-metric-value {
@@ -916,12 +915,62 @@ button.aone-stepper-hit:focus-visible {
 .aone-chip {
   display: inline-flex;
   align-items: center;
-  gap: var(--aone-space-2);
-  padding: var(--aone-space-1) var(--aone-space-3);
+  gap: 6px;
+  max-width: min(280px, 100%);
+  padding: 4px 12px;
   border: 1px solid var(--aone-border);
   border-radius: 999px;
   background: var(--aone-bg-subdued);
   font-size: 13px;
+  line-height: 1.2;
+  color: var(--aone-text);
+}
+
+.aone-chip:has(.aone-chip-remove) {
+  padding: 4px 4px 4px 12px;
+}
+
+.aone-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aone-chip-remove {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--aone-text-subdued);
+  cursor: pointer;
+}
+
+.aone-chip-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--aone-text) 10%, transparent);
+  color: var(--aone-text);
+}
+
+.aone-chip-remove:focus-visible {
+  outline: 2px solid var(--aone-focus);
+  outline-offset: 1px;
+}
+
+.aone-chip-remove:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.aone-chip-remove svg {
+  display: block;
 }
 
 .aone-prompt-textarea {
@@ -1073,6 +1122,17 @@ button.aone-stepper-hit:focus-visible {
 .aone-picker-filter-add:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.aone-picker-filter-caret {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  transition: transform 0.12s ease;
+}
+
+.aone-picker-filter-add.is-open .aone-picker-filter-caret {
+  transform: rotate(180deg);
 }
 
 /* Keep “Clear all” / “Select all” as text links */
@@ -1429,36 +1489,6 @@ button.aone-stepper-hit:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: var(--aone-space-2);
-}
-
-.aone-config-delete-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid var(--aone-border);
-  border-radius: var(--aone-radius-sm);
-  background: var(--aone-bg);
-  color: #8e1f0b;
-  cursor: pointer;
-}
-
-.aone-config-delete-btn:hover:not(:disabled) {
-  background: #fff5f5;
-  border-color: #e0b3b2;
-}
-
-.aone-config-delete-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.aone-config-delete-btn svg {
-  width: 18px;
-  height: 18px;
-  display: block;
 }
 
 .aone-config-steps-footer {

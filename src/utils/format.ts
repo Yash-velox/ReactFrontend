@@ -94,3 +94,16 @@ export function truncateGid(gid: string, max = 28): string {
   if (gid.length <= max) return gid;
   return `${gid.slice(0, max - 1)}…`;
 }
+
+/** Each whitespace-separated word: first letter uppercase, rest lowercase. */
+export function toTitleCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return value;
+  return trimmed
+    .split(/\s+/)
+    .map((word) => {
+      const lower = word.toLocaleLowerCase();
+      return lower.charAt(0).toLocaleUpperCase() + lower.slice(1);
+    })
+    .join(" ");
+}

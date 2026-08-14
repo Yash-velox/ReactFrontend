@@ -97,7 +97,7 @@ export default function GettingStartedStepper({ steps, loading }: Props) {
       </ol>
       <p className="aone-stepper-caption">
         {allComplete
-          ? "You're all set — use At a glance below to monitor ongoing work."
+          ? "You're all set. Monitor your ongoing work below."
           : currentIndex >= 0
             ? `Step ${currentIndex + 1} of ${steps.length}: ${steps[currentIndex].hint}`
             : null}

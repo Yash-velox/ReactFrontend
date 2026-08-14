@@ -148,15 +148,15 @@ export default function ProductsPage() {
           <s-stack direction="block" gap="base">
             <div className="aone-metrics">
               <MetricCard
-                label="Products in catalog"
+                label="Products In Catalog"
                 value={status?.productCount ?? 0}
               />
               <MetricCard
-                label="Active media"
+                label="Active Media"
                 value={status?.activeMediaCount ?? 0}
               />
               <MetricCard
-                label="Latest run"
+                label="Latest Run"
                 value={latest ? formatWhen(latest.completedAt ?? latest.startedAt) : "-"}
                 valueTitle={
                   latest

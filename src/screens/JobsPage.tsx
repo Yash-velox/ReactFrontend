@@ -285,16 +285,24 @@ export default function JobsPage() {
             <div className="aone-chip-list">
               {pickedProducts.slice(0, 40).map((product) => (
                 <span key={product.id} className="aone-chip">
-                  {product.title ?? formatGid(product.id)}
+                  <span className="aone-chip-label">{product.title ?? formatGid(product.id)}</span>
                   <button
                     type="button"
-                    className="aone-field-hint"
+                    className="aone-chip-remove"
                     aria-label={`Remove ${product.title ?? product.id}`}
+                    disabled={creatingBatch}
                     onClick={() =>
                       setPickedProducts((prev) => prev.filter((p) => p.id !== product.id))
                     }
                   >
-                    ×
+                    <svg viewBox="0 0 12 12" width="12" height="12" fill="none" aria-hidden="true">
+                      <path
+                        d="M3 3l6 6M9 3l-6 6"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                      />
+                    </svg>
                   </button>
                 </span>
               ))}

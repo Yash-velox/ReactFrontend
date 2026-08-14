@@ -526,7 +526,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
           <s-stack direction="block" gap="base">
             {TERMINAL_BATCH_STATUSES.has(batch.status) ? (
               <div className="aone-metrics">
-                <MetricCard label="Ready to Publish" value={publishSummary.ready} />
+                <MetricCard label="Ready To Publish" value={publishSummary.ready} />
                 <MetricCard label="Queued" value={publishSummary.queued} />
                 <MetricCard label="Publishing" value={publishSummary.publishing} />
                 <MetricCard label="Published" value={publishSummary.published} badgeTone="success" />

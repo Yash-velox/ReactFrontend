@@ -480,24 +480,13 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                   </label>
                 ) : null}
                 {canDeleteProductType ? (
-                  <button
-                    type="button"
-                    className="aone-config-delete-btn"
-                    title="Delete product type"
-                    aria-label={`Delete product type ${detail.name}`}
+                  <s-button
+                    tone="critical"
                     disabled={saving || deletingProductType}
                     onClick={() => setDeleteProductTypeOpen(true)}
                   >
-                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                      <path
-                        d="M7.5 3.5h5M4.5 5.5h11M8.5 8v5.5M11.5 8v5.5M6.5 5.5l.6 9.2a1.5 1.5 0 0 0 1.5 1.4h3.8a1.5 1.5 0 0 0 1.5-1.4l.6-9.2"
-                        stroke="currentColor"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
+                    {deletingProductType ? "Deleting…" : "Delete"}
+                  </s-button>
                 ) : null}
               </div>
             ) : null}

@@ -1,3 +1,4 @@
+import { toTitleCase } from "../../utils/format";
 import { type BadgeTone, MetricToneBadge } from "./StatusBadge";
 
 type Props = {
@@ -30,13 +31,13 @@ export default function MetricCard({
 
   return (
     <div className="aone-metric">
-      <p className="aone-metric-label">{label}</p>
+      <p className="aone-metric-label">{toTitleCase(label)}</p>
       <p className="aone-metric-value" title={valueTitle}>
         {value}
       </p>
       {badgeTone && badgeLabel ? (
         <div className="aone-metric-footer">
-          <MetricToneBadge tone={badgeTone} label={badgeLabel} />
+          <MetricToneBadge tone={badgeTone} label={toTitleCase(badgeLabel)} />
         </div>
       ) : null}
     </div>

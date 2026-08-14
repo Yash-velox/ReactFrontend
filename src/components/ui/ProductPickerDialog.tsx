@@ -43,6 +43,22 @@ type Props = {
 
 const PAGE_SIZE = 25;
 
+function FilterCaret() {
+  return (
+    <span className="aone-picker-filter-caret" aria-hidden="true">
+      <svg viewBox="0 0 12 12" width="12" height="12" fill="none">
+        <path
+          d="M2.5 4.5 6 8l3.5-3.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
 export default function ProductPickerDialog({
   open,
   initialSelected = [],
@@ -301,7 +317,7 @@ export default function ProductPickerDialog({
               }}
             >
               {productType ? "Change type" : "Type"}
-              <span aria-hidden="true">+</span>
+              <FilterCaret />
             </button>
             {typeMenuOpen ? (
               <div className="aone-picker-menu" role="listbox">
@@ -346,7 +362,7 @@ export default function ProductPickerDialog({
               }}
             >
               Status
-              <span aria-hidden="true">+</span>
+              <FilterCaret />
             </button>
             {statusMenuOpen ? (
               <div className="aone-picker-menu" role="listbox">

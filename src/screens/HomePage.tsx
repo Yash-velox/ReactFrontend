@@ -154,7 +154,7 @@ export default function HomePage() {
       {
         id: "connect",
         label: "Connect",
-        hint: connected ? "Service online" : "Waiting for service",
+        hint: connected ? "Service connected" : "Waiting for service",
       },
       {
         id: "sync",
@@ -188,14 +188,14 @@ export default function HomePage() {
       hint:
         statuses[index] === "complete"
           ? def.id === "connect"
-            ? "Service online"
+            ? "Service connected"
             : def.id === "sync"
-              ? "Catalog ready"
+              ? "Catalog synced"
               : def.id === "prompts"
-                ? "Prompts ready"
+                ? "Prompts configured"
                 : def.id === "process"
-                  ? "Job started"
-                  : "Versions available"
+                  ? "Processing started"
+                  : "Versions ready"
           : def.hint,
     }));
   }, [health, data]);
@@ -221,24 +221,24 @@ export default function HomePage() {
         ) : (
           <div className="aone-metrics">
             <MetricCard
-              label="Products synced"
+              label="Products Synced"
               value={data?.syncStatus.productCount ?? 0}
               badgeTone={syncConfig?.tone}
               badgeLabel={syncConfig ? `Sync ${syncConfig.label.toLowerCase()}` : undefined}
             />
             <MetricCard
-              label="Secondary queue pending"
+              label="Secondary Queue Pending"
               value={data?.secondarySummary.pending ?? 0}
               badgeTone={data?.secondarySummary.pending ? "caution" : "neutral"}
               badgeLabel={data?.secondarySummary.pending ? "Awaiting conversion" : "Clear"}
             />
             <MetricCard
-              label="Active batches"
+              label="Active Batches"
               value={activeBatches}
               badgeTone={activeBatches ? "info" : "neutral"}
               badgeLabel={activeBatches ? "Processing" : "Idle"}
             />
-            <MetricCard label="Products completed" value={completedImages} />
+            <MetricCard label="Products Processed" value={completedImages} />
           </div>
         )}
       </s-section>
