@@ -575,32 +575,26 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                     </td>
                     <td className="aone-col-actions">
                       <div className="aone-step-actions">
-                        <div className="aone-reorder">
-                          <button
-                            type="button"
-                            className="aone-icon-btn aone-reorder-btn"
-                            title="Move up"
-                            aria-label={`Move ${step.name} up`}
-                            onClick={() => void moveStep(step, -1)}
-                            disabled={index === 0 || busyStepId === step.id}
-                          >
-                            <svg className="aone-reorder-icon" viewBox="0 0 20 20" aria-hidden="true">
-                              <path d="M10 5.25 4.75 12.5h10.5L10 5.25Z" fill="currentColor" />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            className="aone-icon-btn aone-reorder-btn"
-                            title="Move down"
-                            aria-label={`Move ${step.name} down`}
-                            onClick={() => void moveStep(step, 1)}
-                            disabled={index === steps.length - 1 || busyStepId === step.id}
-                          >
-                            <svg className="aone-reorder-icon" viewBox="0 0 20 20" aria-hidden="true">
-                              <path d="M10 14.75 15.25 7.5H4.75L10 14.75Z" fill="currentColor" />
-                            </svg>
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          className="aone-icon-btn"
+                          title="Move up"
+                          aria-label={`Move ${step.name} up`}
+                          onClick={() => void moveStep(step, -1)}
+                          disabled={index === 0 || busyStepId === step.id}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          className="aone-icon-btn"
+                          title="Move down"
+                          aria-label={`Move ${step.name} down`}
+                          onClick={() => void moveStep(step, 1)}
+                          disabled={index === steps.length - 1 || busyStepId === step.id}
+                        >
+                          ↓
+                        </button>
                         <button
                           type="button"
                           className="aone-icon-btn aone-overflow-trigger"
