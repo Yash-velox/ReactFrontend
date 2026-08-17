@@ -1578,19 +1578,11 @@ button.aone-stepper-hit:focus-visible {
   box-shadow: none;
 }
 
-.aone-product-links {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
 .aone-text-link {
   color: var(--aone-focus);
-  font-size: 12px;
   font-weight: 600;
   text-decoration: none;
+  word-break: break-all;
 }
 
 .aone-text-link:hover {
@@ -1600,6 +1592,11 @@ button.aone-stepper-hit:focus-visible {
 .aone-product-title {
   font-weight: 650;
   color: var(--aone-text);
+}
+
+a.aone-product-title {
+  color: var(--aone-focus);
+  word-break: break-word;
 }
 
 .aone-overflow-menu {

@@ -59,38 +59,16 @@ function stopRowClick(event: { stopPropagation: () => void }) {
   event.stopPropagation();
 }
 
-function ProductExternalLinks({ product }: { product: BatchProduct }) {
-  if (!product.adminUrl && !product.storefrontUrl) return null;
-  return (
-    <div className="aone-product-links" onClick={stopRowClick}>
-      {product.adminUrl ? (
-        <a
-          className="aone-text-link"
-          href={product.adminUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Admin
-        </a>
-      ) : null}
-      {product.storefrontUrl ? (
-        <a
-          className="aone-text-link"
-          href={product.storefrontUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Frontend
-        </a>
-      ) : null}
-    </div>
-  );
-}
-
-function externalLink(href: string | null | undefined, label: string) {
+function externalLink(href: string | null | undefined, label: string, title?: string) {
   if (!href) return "—";
   return (
-    <a className="aone-text-link" href={href} target="_blank" rel="noopener noreferrer">
+    <a
+      className="aone-text-link"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={title}
+    >
       {label}
     </a>
   );
@@ -632,8 +610,20 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                         onClick={() => setSelectedProduct(product)}
                       >
                         <td>
-                          <div className="aone-product-title">{name}</div>
-                          <ProductExternalLinks product={product} />
+                          {product.storefrontUrl ? (
+                            <a
+                              className="aone-product-title aone-text-link"
+                              href={product.storefrontUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open storefront product"
+                              onClick={stopRowClick}
+                            >
+                              {name}
+                            </a>
+                          ) : (
+                            <div className="aone-product-title">{name}</div>
+                          )}
                         </td>
                         <td>
                           <StatusBadge status={product.status} />
@@ -819,17 +809,15 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
         fields={
           selectedProduct
             ? [
-                { label: "Product", value: productDisplayName(selectedProduct) },
                 {
-                  label: "Admin",
-                  value: externalLink(selectedProduct.adminUrl, "Open in Shopify Admin"),
-                },
-                {
-                  label: "Frontend",
-                  value: externalLink(
-                    selectedProduct.storefrontUrl,
-                    selectedProduct.storefrontUrl ?? "Open storefront",
-                  ),
+                  label: "Product",
+                  value: selectedProduct.adminUrl
+                    ? externalLink(
+                        selectedProduct.adminUrl,
+                        productDisplayName(selectedProduct),
+                        "Open in Shopify Admin",
+                      )
+                    : productDisplayName(selectedProduct),
                 },
                 { label: "Status", value: selectedProduct.status },
                 { label: "Publish status", value: detailText(selectedProduct.publishStatus) },

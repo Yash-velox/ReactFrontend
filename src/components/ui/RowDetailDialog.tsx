@@ -13,6 +13,21 @@ type Props = {
   onClose: () => void;
 };
 
+const HTTP_URL = /^https?:\/\/\S+$/i;
+
+function renderDetailValue(value: ReactNode): ReactNode {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" && HTTP_URL.test(value.trim())) {
+    const href = value.trim();
+    return (
+      <a className="aone-text-link" href={href} target="_blank" rel="noopener noreferrer">
+        {href}
+      </a>
+    );
+  }
+  return value;
+}
+
 /** Read-only dialog that shows every field for a truncated table row. */
 export default function RowDetailDialog({ open, title, fields, onClose }: Props) {
   return (
@@ -21,7 +36,7 @@ export default function RowDetailDialog({ open, title, fields, onClose }: Props)
         {fields.map((field) => (
           <div key={field.label} className="aone-row-detail-item">
             <dt className="aone-row-detail-label">{field.label}</dt>
-            <dd className="aone-row-detail-value">{field.value ?? "—"}</dd>
+            <dd className="aone-row-detail-value">{renderDetailValue(field.value)}</dd>
           </div>
         ))}
       </dl>
