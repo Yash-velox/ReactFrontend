@@ -91,6 +91,10 @@ export type BatchProduct = {
   batchId: string;
   shopifyProductGid: string;
   productId?: string | null;
+  title?: string | null;
+  handle?: string | null;
+  adminUrl?: string | null;
+  storefrontUrl?: string | null;
   status: string;
   publishStatus?: string | null;
   imageCount: number;

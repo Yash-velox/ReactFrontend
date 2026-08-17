@@ -16,7 +16,6 @@ import { formatWhenFull } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 
 const MAX_NAME = 150;
-const MAX_PROMPT = 20000;
 
 function truncate(text: string, max = 80): string {
   const compact = text.replace(/\s+/g, " ").trim();
@@ -231,10 +230,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
       setFormError("Prompt text is required.");
       return false;
     }
-    if (form.promptText.length > MAX_PROMPT) {
-      setFormError(`Prompt text must be at most ${MAX_PROMPT} characters.`);
-      return false;
-    }
     setFormError("");
     return true;
   };
@@ -287,10 +282,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     const text = systemPromptText.trim();
     if (!text) {
       setSystemPromptError("Prompt text is required.");
-      return;
-    }
-    if (systemPromptText.length > MAX_PROMPT) {
-      setSystemPromptError(`Prompt text must be at most ${MAX_PROMPT} characters.`);
       return;
     }
     setSaving(true);
@@ -519,7 +510,6 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 className="aone-input aone-prompt-textarea"
                 rows={12}
                 value={systemPromptText}
-                maxLength={MAX_PROMPT}
                 disabled={saving}
                 onChange={(e) => {
                   setSystemPromptText(e.target.value);
@@ -527,7 +517,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 }}
               />
               <div className="aone-field-hint">
-                {systemPromptText.length.toLocaleString()} / {MAX_PROMPT.toLocaleString()} characters
+                {systemPromptText.length.toLocaleString()} characters
               </div>
             </div>
             {systemPromptError ? (
@@ -585,26 +575,32 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                     </td>
                     <td className="aone-col-actions">
                       <div className="aone-step-actions">
-                        <button
-                          type="button"
-                          className="aone-icon-btn"
-                          title="Move up"
-                          aria-label={`Move ${step.name} up`}
-                          onClick={() => void moveStep(step, -1)}
-                          disabled={index === 0 || busyStepId === step.id}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="aone-icon-btn"
-                          title="Move down"
-                          aria-label={`Move ${step.name} down`}
-                          onClick={() => void moveStep(step, 1)}
-                          disabled={index === steps.length - 1 || busyStepId === step.id}
-                        >
-                          ↓
-                        </button>
+                        <div className="aone-reorder">
+                          <button
+                            type="button"
+                            className="aone-icon-btn aone-reorder-btn"
+                            title="Move up"
+                            aria-label={`Move ${step.name} up`}
+                            onClick={() => void moveStep(step, -1)}
+                            disabled={index === 0 || busyStepId === step.id}
+                          >
+                            <svg className="aone-reorder-icon" viewBox="0 0 20 20" aria-hidden="true">
+                              <path d="M10 5.25 4.75 12.5h10.5L10 5.25Z" fill="currentColor" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className="aone-icon-btn aone-reorder-btn"
+                            title="Move down"
+                            aria-label={`Move ${step.name} down`}
+                            onClick={() => void moveStep(step, 1)}
+                            disabled={index === steps.length - 1 || busyStepId === step.id}
+                          >
+                            <svg className="aone-reorder-icon" viewBox="0 0 20 20" aria-hidden="true">
+                              <path d="M10 14.75 15.25 7.5H4.75L10 14.75Z" fill="currentColor" />
+                            </svg>
+                          </button>
+                        </div>
                         <button
                           type="button"
                           className="aone-icon-btn aone-overflow-trigger"
@@ -721,12 +717,11 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 className="aone-input aone-prompt-textarea"
                 rows={10}
                 value={form.promptText}
-                maxLength={MAX_PROMPT}
                 disabled={saving}
                 onChange={(e) => setForm((p) => ({ ...p, promptText: e.target.value }))}
               />
               <div className="aone-field-hint">
-                {form.promptText.length.toLocaleString()} / {MAX_PROMPT.toLocaleString()} characters
+                {form.promptText.length.toLocaleString()} characters
               </div>
             </div>
             <label className="aone-checkbox-row">

@@ -50,9 +50,50 @@ function resolveBatchId(prop?: string): string {
   return match?.[1] ? decodeURIComponent(match[1]) : "";
 }
 
-function shopifyAdminProductUrl(gid: string): string | null {
-  const match = /Product\/(\d+)/.exec(gid);
-  return match ? `shopify://admin/products/${match[1]}` : null;
+function productDisplayName(product: BatchProduct): string {
+  const title = product.title?.trim();
+  return title || "Untitled product";
+}
+
+function stopRowClick(event: { stopPropagation: () => void }) {
+  event.stopPropagation();
+}
+
+function ProductExternalLinks({ product }: { product: BatchProduct }) {
+  if (!product.adminUrl && !product.storefrontUrl) return null;
+  return (
+    <div className="aone-product-links" onClick={stopRowClick}>
+      {product.adminUrl ? (
+        <a
+          className="aone-text-link"
+          href={product.adminUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Admin
+        </a>
+      ) : null}
+      {product.storefrontUrl ? (
+        <a
+          className="aone-text-link"
+          href={product.storefrontUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Frontend
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+function externalLink(href: string | null | undefined, label: string) {
+  if (!href) return "—";
+  return (
+    <a className="aone-text-link" href={href} target="_blank" rel="noopener noreferrer">
+      {label}
+    </a>
+  );
 }
 
 function canReprocessProduct(product: BatchProduct): boolean {
@@ -201,8 +242,17 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
         setBatchImages(imagesPayload.items ?? []);
         setError("");
       } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to load batch detail";
+        if (/Invalid session token|Signature has expired/i.test(message)) {
+          if (!opts?.silent) {
+            window.setTimeout(() => {
+              void loadDetail({ silent: true });
+            }, 400);
+          }
+          return;
+        }
         if (!opts?.silent) {
-          setError(err instanceof Error ? err.message : "Failed to load batch detail");
+          setError(message);
         }
       } finally {
         loadInFlight.current = false;
@@ -560,7 +610,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
               <DataTable>
                 <thead>
                   <tr>
-                    <th>Product GID</th>
+                    <th>Product</th>
                     <th>Status</th>
                     <th>Publish</th>
                     <th>Images</th>
@@ -571,9 +621,10 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                 </thead>
                 <tbody>
                   {batchProducts.map((product) => {
-                    const adminUrl = shopifyAdminProductUrl(product.shopifyProductGid);
+                    const adminUrl = product.adminUrl;
                     const pub = product.publishStatus;
                     const busy = publishBusyId === product.id;
+                    const name = productDisplayName(product);
                     return (
                       <tr
                         key={product.id}
@@ -581,9 +632,8 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                         onClick={() => setSelectedProduct(product)}
                       >
                         <td>
-                          <code className="aone-mono" title={product.shopifyProductGid}>
-                            {truncateGid(product.shopifyProductGid)}
-                          </code>
+                          <div className="aone-product-title">{name}</div>
+                          <ProductExternalLinks product={product} />
                         </td>
                         <td>
                           <StatusBadge status={product.status} />
@@ -669,7 +719,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                                   </s-button>
                                 ) : null}
                                 <OverflowMenu
-                                  label={`More actions for ${truncateGid(product.shopifyProductGid)}`}
+                                  label={`More actions for ${name}`}
                                   items={overflowItems}
                                 />
                               </div>
@@ -769,8 +819,18 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
         fields={
           selectedProduct
             ? [
-                { label: "Shopify product GID", value: selectedProduct.shopifyProductGid },
-                { label: "Internal product ID", value: detailText(selectedProduct.productId) },
+                { label: "Product", value: productDisplayName(selectedProduct) },
+                {
+                  label: "Admin",
+                  value: externalLink(selectedProduct.adminUrl, "Open in Shopify Admin"),
+                },
+                {
+                  label: "Frontend",
+                  value: externalLink(
+                    selectedProduct.storefrontUrl,
+                    selectedProduct.storefrontUrl ?? "Open storefront",
+                  ),
+                },
                 { label: "Status", value: selectedProduct.status },
                 { label: "Publish status", value: detailText(selectedProduct.publishStatus) },
                 { label: "Images", value: selectedProduct.imageCount },
@@ -788,8 +848,6 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                 },
                 { label: "Created", value: detailText(formatWhenFull(selectedProduct.createdAt)) },
                 { label: "Updated", value: detailText(formatWhenFull(selectedProduct.updatedAt)) },
-                { label: "Batch ID", value: selectedProduct.batchId },
-                { label: "Record ID", value: selectedProduct.id },
               ]
             : []
         }

@@ -1578,6 +1578,63 @@ button.aone-stepper-hit:focus-visible {
   box-shadow: none;
 }
 
+.aone-reorder {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.aone-reorder-btn {
+  width: 26px;
+  height: 20px;
+  border-radius: 6px;
+  border-color: transparent;
+  background: var(--aone-bg-subdued);
+  color: var(--aone-text-subdued);
+  box-shadow: none;
+}
+
+.aone-reorder-btn:hover:not(:disabled) {
+  color: var(--aone-focus);
+  background: color-mix(in srgb, var(--aone-focus) 12%, var(--aone-bg));
+  border-color: color-mix(in srgb, var(--aone-focus) 28%, var(--aone-border));
+}
+
+.aone-reorder-btn:active:not(:disabled) {
+  background: color-mix(in srgb, var(--aone-focus) 20%, var(--aone-bg));
+}
+
+.aone-reorder-icon {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+
+.aone-product-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.aone-text-link {
+  color: var(--aone-focus);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.aone-text-link:hover {
+  text-decoration: underline;
+}
+
+.aone-product-title {
+  font-weight: 650;
+  color: var(--aone-text);
+}
+
 .aone-overflow-menu {
   position: relative;
 }

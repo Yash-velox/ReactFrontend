@@ -119,7 +119,11 @@ export default function JobsPage() {
       setError("");
     } catch (err) {
       // Keep previous lists on failure so the UI doesn't flash empty.
-      setError(err instanceof Error ? err.message : "Failed to refresh monitoring data");
+      const message = err instanceof Error ? err.message : "Failed to refresh monitoring data";
+      if (/Invalid session token|Signature has expired/i.test(message)) {
+        return;
+      }
+      setError(message);
     } finally {
       pollInFlight.current = false;
       setLoading(false);
