@@ -162,23 +162,26 @@ export default function JobsPage() {
     };
   }, [refresh]);
 
-  // Surface Secondary Queue prompt/config failures as a toast (table still shows details).
+  const secondaryFailedCount = secondarySummary?.failed;
+
+  // Toast only when the failed count rises while Jobs is open. Do not alarm on
+  // historical failures every time the merchant opens the page.
   useEffect(() => {
-    const failed = secondarySummary?.failed ?? 0;
-    if (failed <= 0) {
-      lastToastedSecondaryFailedRef.current = 0;
+    if (secondaryFailedCount === undefined) return;
+    const previous = lastToastedSecondaryFailedRef.current;
+    if (previous === null) {
+      lastToastedSecondaryFailedRef.current = secondaryFailedCount;
       return;
     }
-    const previous = lastToastedSecondaryFailedRef.current;
-    if (previous === failed) return;
-    if (previous === null || failed > previous) {
+    if (secondaryFailedCount > previous) {
+      const newlyFailed = secondaryFailedCount - previous;
       showAppToast(
-        `${failed} product(s) could not be processed. Check Skip / failure - usually missing Prompt Configuration.`,
+        `${newlyFailed} more product(s) could not be processed. Check Skip / failure in Secondary Queue.`,
         { isError: true, duration: 8000 },
       );
     }
-    lastToastedSecondaryFailedRef.current = failed;
-  }, [secondarySummary?.failed]);
+    lastToastedSecondaryFailedRef.current = secondaryFailedCount;
+  }, [secondaryFailedCount]);
 
   const openBatchDetail = (batchId: string) => {
     navigateApp(`/jobs/${batchId}`);
