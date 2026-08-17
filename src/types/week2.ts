@@ -46,6 +46,10 @@ export type SecondaryQueueItem = {
   id: string;
   shopifyProductGid: string;
   productId?: string | null;
+  title?: string | null;
+  handle?: string | null;
+  adminUrl?: string | null;
+  storefrontUrl?: string | null;
   queueRevision: number;
   status: string;
   webhookCount: number;

@@ -14,7 +14,7 @@ import { endpoints } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { Batch, PaginationMeta, SecondaryQueueItem, SecondaryQueueSummary } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
-import { formatGid, formatWhenFull, truncateGid } from "../utils/format";
+import { formatGid, formatWhenFull } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 import { showAppToast } from "../utils/toast";
 
@@ -36,6 +36,30 @@ function chunkArray<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(i, i + n));
   }
   return chunks;
+}
+
+function secondaryDisplayName(item: SecondaryQueueItem): string {
+  const title = item.title?.trim();
+  return title || "Untitled product";
+}
+
+function stopRowClick(event: { stopPropagation: () => void }) {
+  event.stopPropagation();
+}
+
+function externalLink(href: string | null | undefined, label: string, title?: string) {
+  if (!href) return "—";
+  return (
+    <a
+      className="aone-text-link"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={title}
+    >
+      {label}
+    </a>
+  );
 }
 
 export default function JobsPage() {
@@ -424,11 +448,20 @@ export default function JobsPage() {
                           onClick={() => setSelectedSecondary(item)}
                         >
                           <td>
-                            <s-text type="strong">{formatGid(item.shopifyProductGid)}</s-text>
-                            <br />
-                            <code className="aone-mono" title={item.shopifyProductGid}>
-                              {truncateGid(item.shopifyProductGid)}
-                            </code>
+                            {item.storefrontUrl ? (
+                              <a
+                                className="aone-product-title aone-text-link"
+                                href={item.storefrontUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Open storefront product"
+                                onClick={stopRowClick}
+                              >
+                                {secondaryDisplayName(item)}
+                              </a>
+                            ) : (
+                              <div className="aone-product-title">{secondaryDisplayName(item)}</div>
+                            )}
                           </td>
                           <td>{item.queueRevision}</td>
                           <td>{item.webhookCount}</td>
@@ -612,9 +645,16 @@ export default function JobsPage() {
         fields={
           selectedSecondary
             ? [
-                { label: "Product", value: formatGid(selectedSecondary.shopifyProductGid) },
-                { label: "Shopify product GID", value: selectedSecondary.shopifyProductGid },
-                { label: "Internal product ID", value: detailText(selectedSecondary.productId) },
+                {
+                  label: "Product",
+                  value: selectedSecondary.adminUrl
+                    ? externalLink(
+                        selectedSecondary.adminUrl,
+                        secondaryDisplayName(selectedSecondary),
+                        "Open in Shopify Admin",
+                      )
+                    : secondaryDisplayName(selectedSecondary),
+                },
                 { label: "Queue revision", value: selectedSecondary.queueRevision },
                 { label: "Webhook count", value: selectedSecondary.webhookCount },
                 { label: "Status", value: selectedSecondary.status },
@@ -637,7 +677,6 @@ export default function JobsPage() {
                 { label: "Failure reason", value: detailText(selectedSecondary.failureReason) },
                 { label: "Created", value: detailText(formatWhenFull(selectedSecondary.createdAt)) },
                 { label: "Updated", value: detailText(formatWhenFull(selectedSecondary.updatedAt)) },
-                { label: "Record ID", value: selectedSecondary.id },
               ]
             : []
         }
