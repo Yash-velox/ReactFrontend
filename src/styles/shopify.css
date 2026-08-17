@@ -1015,6 +1015,7 @@ button.aone-stepper-hit:focus-visible {
 
 /* ── Product picker (Resource Picker–style) ── */
 .aone-picker {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -1276,7 +1277,7 @@ button.aone-stepper-hit:focus-visible {
 
 .aone-picker-row {
   display: grid;
-  grid-template-columns: 18px 40px minmax(0, 1fr);
+  grid-template-columns: 18px 56px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -1304,13 +1305,37 @@ button.aone-stepper-hit:focus-visible {
 }
 
 .aone-picker-thumb {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--aone-border);
   background: #f6f6f7;
   flex-shrink: 0;
+}
+
+.aone-picker-image-preview {
+  position: absolute;
+  z-index: 40;
+  width: 280px;
+  height: 280px;
+  box-sizing: border-box;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--aone-border);
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.aone-picker-image-preview img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+  background: #f6f6f7;
 }
 
 .aone-picker-thumb img {
