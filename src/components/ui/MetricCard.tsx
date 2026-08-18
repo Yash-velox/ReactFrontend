@@ -54,12 +54,18 @@ export default function MetricCard({
     <div
       className={hint ? "aone-metric has-hint" : "aone-metric"}
       aria-label={hint ? `${displayLabel}. ${hint}` : undefined}
-      title={hint}
       tabIndex={hint ? 0 : undefined}
     >
       <p className="aone-metric-label">
         <span>{displayLabel}</span>
-        {hint ? <InfoMark /> : null}
+        {hint ? (
+          <span className="aone-metric-hint">
+            <InfoMark />
+            <span className="aone-metric-tooltip" role="tooltip">
+              {hint}
+            </span>
+          </span>
+        ) : null}
       </p>
       <p className="aone-metric-value" title={valueTitle}>
         {value}
@@ -69,7 +75,6 @@ export default function MetricCard({
           <MetricToneBadge tone={badgeTone} label={toTitleCase(badgeLabel)} />
         </div>
       ) : null}
-      {hint ? <span className="aone-metric-tooltip">{hint}</span> : null}
     </div>
   );
 }

@@ -107,15 +107,22 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
+.aone-metric-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .aone-metric-tooltip {
   display: none;
   position: absolute;
-  left: 50%;
-  bottom: calc(100% + 8px);
-  top: auto;
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  bottom: auto;
   z-index: 22;
-  width: max(100%, 220px);
-  max-width: 280px;
+  width: 240px;
+  max-width: min(240px, 70vw);
   padding: 8px 10px;
   border: 1px solid var(--aone-border);
   border-radius: 8px;
@@ -126,8 +133,19 @@ textarea:focus-visible {
   font-weight: 450;
   letter-spacing: 0;
   line-height: 1.4;
+  white-space: normal;
   pointer-events: none;
-  transform: translateX(-50%);
+  transform: none;
+}
+
+.aone-metric-tooltip::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 100%;
+  border: 6px solid transparent;
+  border-bottom-color: #fff;
+  filter: drop-shadow(0 -1px 0 var(--aone-border));
 }
 
 .aone-metric.has-hint:hover .aone-metric-tooltip,
@@ -1578,17 +1596,27 @@ button.aone-stepper-hit:focus-visible {
   border-top: 1px solid var(--aone-border);
 }
 
-.aone-table th.aone-col-order,
-.aone-table td.aone-col-order {
-  width: 88px;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
+.aone-steps-table .aone-table-wrap {
+  overflow: visible;
 }
 
-.aone-order-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.aone-table th.aone-col-drag,
+.aone-table td.aone-col-drag {
+  width: 44px;
+  min-width: 44px;
+  padding-left: var(--aone-space-3);
+  padding-right: var(--aone-space-2);
+  text-align: center;
+}
+
+.aone-table th.aone-col-order,
+.aone-table td.aone-col-order {
+  width: 64px;
+  min-width: 64px;
+  padding-left: var(--aone-space-2);
+  padding-right: var(--aone-space-4);
+  text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 
 .aone-drag-handle {
@@ -1596,23 +1624,21 @@ button.aone-stepper-hit:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--aone-border);
+  border: none;
   border-radius: 6px;
-  background: var(--aone-bg);
+  background: transparent;
   color: var(--aone-text-subdued);
   cursor: grab;
   touch-action: none;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 }
 
 .aone-drag-handle:hover:not(:disabled) {
   background: var(--aone-bg-subdued);
   color: var(--aone-text);
-  border-color: color-mix(in srgb, var(--aone-text-subdued) 40%, var(--aone-border));
 }
 
 .aone-drag-handle:active:not(:disabled),
@@ -1627,19 +1653,41 @@ body:has(.aone-sortable-row.is-dragging) {
 .aone-drag-handle:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .aone-sortable-row.is-dragging td {
-  background: var(--aone-bg);
-  opacity: 0.72;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
-  position: relative;
-  z-index: 2;
+  background: color-mix(in srgb, var(--aone-bg-subdued) 80%, var(--aone-border));
+  color: transparent;
+  border-bottom: 2px dashed var(--aone-border);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.aone-sortable-row.is-dragging td > * {
+  visibility: hidden;
 }
 
 .aone-table tbody tr.aone-sortable-row.is-dragging:hover td {
+  background: color-mix(in srgb, var(--aone-bg-subdued) 80%, var(--aone-border));
+}
+
+.aone-step-drag-overlay {
+  display: flex;
+  align-items: center;
+  gap: var(--aone-space-3);
+  min-width: 280px;
+  padding: var(--aone-space-3) var(--aone-space-4);
+  border: 1px solid var(--aone-border);
+  border-radius: var(--aone-radius-md);
   background: var(--aone-bg);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+  color: var(--aone-text);
+  cursor: grabbing;
+}
+
+.aone-step-drag-overlay-order {
+  font-variant-numeric: tabular-nums;
+  color: var(--aone-text-subdued);
 }
 
 .aone-table th.aone-col-status,

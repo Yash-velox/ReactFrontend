@@ -1,11 +1,15 @@
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCenter,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
+  type DragStartEvent,
+  type Modifier,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -14,7 +18,6 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import AonePage from "../components/ui/AonePage";
@@ -33,6 +36,11 @@ import { formatWhenFull } from "../utils/format";
 import { navigateApp } from "../utils/routes";
 
 const MAX_NAME = 150;
+
+const restrictToVerticalAxis: Modifier = ({ transform }) => ({
+  ...transform,
+  x: 0,
+});
 
 function truncate(text: string, max = 80): string {
   const compact = text.replace(/\s+/g, " ").trim();
@@ -82,7 +90,7 @@ function SortableStepRow({
   onToggleMenu,
   menuTriggerRef,
 }: SortableStepRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: step.id,
     disabled: dragDisabled,
   });
@@ -91,27 +99,21 @@ function SortableStepRow({
     <tr
       ref={setNodeRef}
       className={isDragging ? "aone-sortable-row is-dragging" : "aone-sortable-row"}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        transition,
-      }}
     >
-      <td className="aone-col-order">
-        <div className="aone-order-cell">
-          <button
-            type="button"
-            className="aone-drag-handle"
-            title={`Reorder ${step.name}`}
-            disabled={dragDisabled}
-            {...attributes}
-            {...listeners}
-            aria-label={`Reorder ${step.name}`}
-          >
-            <GripIcon />
-          </button>
-          <span>{step.stepOrder}</span>
-        </div>
+      <td className="aone-col-drag">
+        <button
+          type="button"
+          className="aone-drag-handle"
+          title={`Reorder ${step.name}`}
+          disabled={dragDisabled}
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${step.name}`}
+        >
+          <GripIcon />
+        </button>
       </td>
+      <td className="aone-col-order">{step.stepOrder}</td>
       <td>
         <strong>{step.name}</strong>
       </td>
@@ -164,6 +166,8 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"success" | "critical">("success");
   const [detail, setDetail] = useState<PromptConfigurationDetail | null>(null);
+  const detailRef = useRef(detail);
+  detailRef.current = detail;
 
   const [stepModalOpen, setStepModalOpen] = useState(false);
   const [editingStep, setEditingStep] = useState<PromptStep | null>(null);
@@ -176,6 +180,8 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
   const [reordering, setReordering] = useState(false);
   const reorderingRef = useRef(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const stepsAtDragStartRef = useRef<PromptStep[] | null>(null);
   const [menuStepId, setMenuStepId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [systemPromptText, setSystemPromptText] = useState("");
@@ -457,20 +463,23 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     }
   };
 
-  const persistReorder = async (nextSteps: PromptStep[]) => {
-    if (!detail || reorderingRef.current) return;
+  const persistReorder = async (nextSteps: PromptStep[], previousSteps?: PromptStep[]) => {
+    const currentDetail = detailRef.current;
+    if (!currentDetail || reorderingRef.current) return;
     reorderingRef.current = true;
     setReordering(true);
-    const previous = detail;
+    const previous = previousSteps
+      ? { ...currentDetail, steps: previousSteps }
+      : currentDetail;
     const withOrder = nextSteps.map((step, index) => ({
       ...step,
       stepOrder: index + 1,
     }));
-    setDetail({ ...detail, steps: withOrder });
+    setDetail({ ...currentDetail, steps: withOrder });
     setError("");
     try {
       const data = await parseApiResponse<{ items: PromptStep[] }>(
-        await authenticatedFetch(endpoints.promptProductTypeStepsReorder(detail.productTypeId), {
+        await authenticatedFetch(endpoints.promptProductTypeStepsReorder(currentDetail.productTypeId), {
           method: "PUT",
           body: JSON.stringify({ stepIds: withOrder.map((s) => s.id) }),
         }),
@@ -485,14 +494,52 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const orderedStepIds = (items: PromptStep[]) =>
+    [...items].sort((a, b) => a.stepOrder - b.stepOrder).map((item) => item.id);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    closeStepMenu();
+    if (!detail) return;
+    stepsAtDragStartRef.current = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+    setActiveDragId(String(event.active.id));
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
-    if (!detail || !over || String(active.id) === String(over.id)) return;
-    const ordered = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
-    const oldIndex = ordered.findIndex((item) => item.id === String(active.id));
-    const newIndex = ordered.findIndex((item) => item.id === String(over.id));
-    if (oldIndex < 0 || newIndex < 0) return;
-    void persistReorder(arrayMove(ordered, oldIndex, newIndex));
+    if (!over || String(active.id) === String(over.id)) return;
+    setDetail((current) => {
+      if (!current) return current;
+      const ordered = [...current.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+      const oldIndex = ordered.findIndex((item) => item.id === String(active.id));
+      const newIndex = ordered.findIndex((item) => item.id === String(over.id));
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) return current;
+      return {
+        ...current,
+        steps: arrayMove(ordered, oldIndex, newIndex).map((step, index) => ({
+          ...step,
+          stepOrder: index + 1,
+        })),
+      };
+    });
+  };
+
+  const handleDragEnd = (_event: DragEndEvent) => {
+    const started = stepsAtDragStartRef.current;
+    const current = detailRef.current;
+    setActiveDragId(null);
+    stepsAtDragStartRef.current = null;
+    if (!current || !started) return;
+    if (orderedStepIds(current.steps).join() === started.map((item) => item.id).join()) return;
+    void persistReorder(current.steps, started);
+  };
+
+  const handleDragCancel = () => {
+    const started = stepsAtDragStartRef.current;
+    setActiveDragId(null);
+    stepsAtDragStartRef.current = null;
+    if (started) {
+      setDetail((current) => (current ? { ...current, steps: started } : current));
+    }
   };
 
   const confirmDeleteStep = async () => {
@@ -537,6 +584,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   }
 
   const steps = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+  const activeDragStep = activeDragId ? steps.find((step) => step.id === activeDragId) : undefined;
   const isCentral = Boolean(detail.isCentral) || detail.source === "SYSTEM";
   const canDeleteProductType = detail.source === "MANUAL" && !isCentral;
   const isEditDirty =
@@ -679,12 +727,18 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragStart={closeStepMenu}
+              modifiers={[restrictToVerticalAxis]}
+              autoScroll={false}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
+              <div className="aone-steps-table">
               <DataTable>
                 <thead>
                   <tr>
+                    <th className="aone-col-drag" aria-label="Reorder" />
                     <th className="aone-col-order">Order</th>
                     <th>Prompt title</th>
                     <th>Prompt Preview</th>
@@ -717,6 +771,16 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                   </tbody>
                 </SortableContext>
               </DataTable>
+              </div>
+              <DragOverlay dropAnimation={null}>
+                {activeDragStep ? (
+                  <div className="aone-step-drag-overlay">
+                    <GripIcon />
+                    <span className="aone-step-drag-overlay-order">{activeDragStep.stepOrder}</span>
+                    <strong>{activeDragStep.name}</strong>
+                  </div>
+                ) : null}
+              </DragOverlay>
             </DndContext>
             <div className="aone-config-steps-footer">
               <s-button variant="primary" onClick={openAddStep}>
