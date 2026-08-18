@@ -58,12 +58,10 @@ export default function MetricCard({
     >
       <p className="aone-metric-label">
         <span>{displayLabel}</span>
+        {hint ? <InfoMark /> : null}
         {hint ? (
-          <span className="aone-metric-hint">
-            <InfoMark />
-            <span className="aone-metric-tooltip" role="tooltip">
-              {hint}
-            </span>
+          <span className="aone-metric-tooltip" role="tooltip">
+            {hint}
           </span>
         ) : null}
       </p>

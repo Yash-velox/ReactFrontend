@@ -91,6 +91,7 @@ textarea:focus-visible {
 
 .aone-metric-label {
   margin: 0;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -107,22 +108,17 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 
-.aone-metric-hint {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
 .aone-metric-tooltip {
   display: none;
   position: absolute;
   top: calc(100% + 8px);
+  left: 0;
   right: 0;
-  left: auto;
   bottom: auto;
   z-index: 22;
-  width: 240px;
-  max-width: min(240px, 70vw);
+  width: auto;
+  max-width: none;
+  box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid var(--aone-border);
   border-radius: 8px;
@@ -141,7 +137,7 @@ textarea:focus-visible {
 .aone-metric-tooltip::after {
   content: "";
   position: absolute;
-  right: 8px;
+  right: 4px;
   bottom: 100%;
   border: 6px solid transparent;
   border-bottom-color: #fff;
