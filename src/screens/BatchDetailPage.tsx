@@ -60,7 +60,7 @@ function stopRowClick(event: { stopPropagation: () => void }) {
 }
 
 function externalLink(href: string | null | undefined, label: string, title?: string) {
-  if (!href) return "—";
+  if (!href) return "-";
   return (
     <a
       className="aone-text-link"
@@ -103,7 +103,7 @@ function publishStageLabel(status: string | null | undefined): string {
     case "PUBLISH_CONFLICT":
       return "Publish conflict";
     case "RESTORE_FAILED":
-      return "Restore failed — review in Shopify";
+      return "Restore failed - review in Shopify";
     default:
       return status;
   }
@@ -656,7 +656,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                           <StatusBadge status={product.status} />
                         </td>
                         <td>
-                          {pub ? <StatusBadge status={pub} /> : "—"}
+                          {pub ? <StatusBadge status={pub} /> : "-"}
                           {pub && ACTIVE_PUBLISH_STATUSES.has(pub) ? (
                             <>
                               <br />
@@ -667,7 +667,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                         <td>{product.imageCount}</td>
                         <td>{product.retryCount}</td>
                         <td className="aone-table-cell-truncate" title={product.errorMessage ?? undefined}>
-                          {product.errorMessage ?? "—"}
+                          {product.errorMessage ?? "-"}
                         </td>
                         <td
                           className="aone-col-actions"
@@ -709,7 +709,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                             }
                             const hasPrimary = showPublish || showRetry || showConflict;
                             if (!hasPrimary && overflowItems.length === 0) {
-                              return "—";
+                              return "-";
                             }
                             return (
                               <div className="aone-step-actions">
@@ -785,7 +785,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                       </td>
                       <td>{image.attemptCount}</td>
                       <td className="aone-table-cell-truncate" title={image.errorMessage ?? undefined}>
-                        {image.errorMessage ?? "—"}
+                        {image.errorMessage ?? "-"}
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="aone-toolbar" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
@@ -884,7 +884,7 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
                   value:
                     selectedImage.width && selectedImage.height
                       ? `${selectedImage.width} × ${selectedImage.height}`
-                      : "—",
+                      : "-",
                 },
                 { label: "MIME type", value: detailText(selectedImage.mimeType) },
                 { label: "Delta", value: selectedImage.deltaType },

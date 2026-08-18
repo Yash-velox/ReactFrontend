@@ -79,7 +79,7 @@ export function useModalOverlay(
 
     const handleHide = () => {
       if (!closeOnOutsideClick && !intentionalDismissRef.current) {
-        // Outside click / host dismiss — keep the dialog open.
+        // Outside click / host dismiss - keep the dialog open.
         // Re-show immediately and again after host finish (Admin can race the hide).
         forceShow();
         clearReopenTimers();

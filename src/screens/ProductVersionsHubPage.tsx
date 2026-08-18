@@ -174,7 +174,7 @@ export default function ProductVersionsHubPage() {
               {items.map((item) => (
                 <tr key={item.productId}>
                   <td>{item.title || item.shopifyProductGid}</td>
-                  <td>{item.handle || "—"}</td>
+                  <td>{item.handle || "-"}</td>
                   <td>
                     v{item.activeVersionNumber} ({item.activeVersionType})
                   </td>

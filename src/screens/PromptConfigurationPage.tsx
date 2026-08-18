@@ -859,7 +859,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                 value={form.name}
                 maxLength={MAX_NAME}
                 disabled={saving}
-                placeholder="Optional — defaults to Untitled prompt"
+                placeholder="Optional - defaults to Untitled prompt"
                 onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               />
               <div className="aone-field-hint">Optional. Leave blank to use “Untitled prompt”.</div>
@@ -950,7 +950,7 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
                   label: "Variables",
                   value: detailStep.variables.length
                     ? detailStep.variables.map((v) => `{{${v}}}`).join(", ")
-                    : "—",
+                    : "-",
                 },
                 { label: "Prompt text", value: detailStep.promptText },
                 { label: "Created", value: detailText(formatWhenFull(detailStep.createdAt)) },

@@ -493,7 +493,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
       });
       const payload = await parseApiResponse<{ batchId?: string; imageCount?: number }>(res);
       setMessage(
-        `Queued ${payload.imageCount ?? selectedLiveGids.length} live image(s) for reprocess. They will publish automatically when processing finishes. This apply cannot be undone — use Revert on a stored version to restore a complete previous image set.`,
+        `Queued ${payload.imageCount ?? selectedLiveGids.length} live image(s) for reprocess. They will publish automatically when processing finishes. This apply cannot be undone - use Revert on a stored version to restore a complete previous image set.`,
       );
       setQueuedBatchId(payload.batchId ?? null);
       closeReprocessDialog();
@@ -631,7 +631,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
               <div className="aone-rollback-panel-titles">
                 <p className="aone-rollback-panel-title">
                   {rollbackOp.status === "ROLLBACK_CONFLICT"
-                    ? "Rollback blocked — live media differs"
+                    ? "Rollback blocked - live media differs"
                     : rollbackOp.status === "ROLLED_BACK"
                       ? "Rollback completed"
                       : rollbackOp.status === "RESTORE_FAILED"
@@ -913,8 +913,8 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
               </s-banner>
             ) : null}
             <div className="aone-versions-compare">
-              <MediaStrip media={preview.current?.media} label={`Current (v${preview.current?.versionNumber ?? "—"})`} />
-              <MediaStrip media={preview.target?.media} label={`Target (v${preview.target?.versionNumber ?? "—"})`} />
+              <MediaStrip media={preview.current?.media} label={`Current (v${preview.current?.versionNumber ?? "-"})`} />
+              <MediaStrip media={preview.target?.media} label={`Target (v${preview.target?.versionNumber ?? "-"})`} />
             </div>
             <label className="aone-checkbox-row">
               <input

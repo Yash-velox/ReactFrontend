@@ -59,7 +59,7 @@ export function formatWhenFull(value?: string | null): string {
  */
 export function formatWhen(value?: string | null, nowMs: number = Date.now()): string {
   const date = parseDate(value);
-  if (!date) return value ? value : "—";
+  if (!date) return value ? value : "-";
 
   const now = new Date(nowMs);
   const diffMs = date.getTime() - nowMs;

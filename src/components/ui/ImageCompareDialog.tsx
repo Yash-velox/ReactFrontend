@@ -150,12 +150,12 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
           </div>
           <div className="aone-stat">
             <span className="aone-stat-label">Prompt step</span>
-            <span className="aone-stat-value">{image.currentPromptStep || "—"}</span>
+            <span className="aone-stat-value">{image.currentPromptStep || "-"}</span>
           </div>
           <div className="aone-stat">
             <span className="aone-stat-label">Source size</span>
             <span className="aone-stat-value">
-              {image.width && image.height ? `${image.width} × ${image.height}` : "—"}
+              {image.width && image.height ? `${image.width} × ${image.height}` : "-"}
             </span>
           </div>
           <div className="aone-stat">

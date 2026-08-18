@@ -16,7 +16,7 @@ function isEmbeddedAdmin(): boolean {
   try {
     return window.self !== window.top;
   } catch {
-    // Cross-origin parent (Shopify Admin) throws — that means we are embedded.
+    // Cross-origin parent (Shopify Admin) throws - that means we are embedded.
     return true;
   }
 }
@@ -86,7 +86,7 @@ async function sendWithToken(uri: string, options: RequestInit, token: string): 
 }
 
 /**
- * Attaches Shopify session token (JWT) as Bearer auth — Retention Hub pattern.
+ * Attaches Shopify session token (JWT) as Bearer auth - Retention Hub pattern.
  * Uses App Bridge CDN global (`window.shopify`) when embedded in Admin.
  * Retries once with a fresh token when Shopify's ~60s JWT has just expired.
  */

@@ -17,7 +17,7 @@ import "./styles/shopify.css";
 
 /**
  * App Bridge NavMenu is a custom-element wrapper (`ui-nav-menu`).
- * It does not require a React Provider — CDN App Bridge registers the element.
+ * It does not require a React Provider - CDN App Bridge registers the element.
  * Render is safe outside Admin; links simply won't appear in the Shopify chrome.
  */
 function AppNav() {

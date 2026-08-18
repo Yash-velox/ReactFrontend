@@ -11,7 +11,7 @@ type Props = {
 
 /**
  * In-app dialog that is not App Bridge `s-modal`.
- * Outside click and Escape do not close it — only the X or an explicit
+ * Outside click and Escape do not close it - only the X or an explicit
  * `onClose` from a Close/Cancel button inside `children` / header.
  */
 export default function LockedDialog({ open, title, onClose, busy = false, children }: Props) {
@@ -28,7 +28,7 @@ export default function LockedDialog({ open, title, onClose, busy = false, child
 
   return (
     <div className="aone-locked-dialog-root" role="presentation">
-      {/* Backdrop: visual only — no click handler, so outside click does nothing */}
+      {/* Backdrop: visual only - no click handler, so outside click does nothing */}
       <div className="aone-locked-dialog-backdrop" aria-hidden="true" />
       <div
         className="aone-locked-dialog-panel"

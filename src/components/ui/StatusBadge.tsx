@@ -71,7 +71,7 @@ export function getStatusConfig(status: string): StatusConfig {
 
 type Props = {
   status: string;
-  /** Show raw enum in the HTML tooltip (do not name this `title` — it can leak onto host elements). */
+  /** Show raw enum in the HTML tooltip (do not name this `title` - it can leak onto host elements). */
   showTooltip?: boolean;
 };
 

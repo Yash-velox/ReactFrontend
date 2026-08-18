@@ -477,7 +477,7 @@ export default function ProductPickerDialog({
                       {product.title || formatGid(product.shopifyProductGid)}
                     </span>
                     <span className="aone-picker-row-meta">
-                      {[product.productType, product.status].filter(Boolean).join(" · ") || "—"}
+                      {[product.productType, product.status].filter(Boolean).join(" · ") || "-"}
                     </span>
                   </span>
                 </button>

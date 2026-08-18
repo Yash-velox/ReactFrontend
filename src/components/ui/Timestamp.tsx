@@ -10,8 +10,8 @@ type Props = {
  */
 export default function Timestamp({ value, className }: Props) {
   const display = formatWhen(value);
-  if (!value || display === "—") {
-    return <span className={className}>—</span>;
+  if (!value || display === "-") {
+    return <span className={className}>-</span>;
   }
 
   const full = formatWhenFull(value);

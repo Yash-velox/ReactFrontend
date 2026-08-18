@@ -5,7 +5,7 @@ type InlineSize = "small" | "base" | "large";
 type Props = {
   heading: string;
   children?: ReactNode;
-  /** Polaris page width. Default large — base caps cards around 966px and leaves empty side space. */
+  /** Polaris page width. Default large - base caps cards around 966px and leaves empty side space. */
   inlineSize?: InlineSize;
 };
 

@@ -26,7 +26,7 @@ export default function ProductsPage() {
   const [runs, setRuns] = useState<SyncRun[]>([]);
   const [selectedRun, setSelectedRun] = useState<SyncRun | null>(null);
   const pollInFlight = useRef(false);
-  /** Catalog size when sync became busy — used for % when re-syncing a known catalog. */
+  /** Catalog size when sync became busy - used for % when re-syncing a known catalog. */
   const [syncBaseline, setSyncBaseline] = useState<number | null>(null);
 
   const refresh = useCallback(
@@ -122,7 +122,7 @@ export default function ProductsPage() {
     <AonePage heading="Products">
       <s-section heading="Catalog sync">
         <s-paragraph>
-          Update your product list and image details from Shopify. Photos stay in your store — this
+          Update your product list and image details from Shopify. Photos stay in your store - this
           only refreshes the information used for processing.
         </s-paragraph>
       </s-section>
@@ -255,7 +255,7 @@ export default function ProductsPage() {
                     <Timestamp value={run.completedAt} />
                   </td>
                   <td className="aone-table-cell-truncate" title={run.errorMessage ?? undefined}>
-                    {run.errorMessage ?? "—"}
+                    {run.errorMessage ?? "-"}
                   </td>
                 </tr>
               ))}

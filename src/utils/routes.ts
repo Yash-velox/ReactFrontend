@@ -26,7 +26,7 @@ let registeredNavigate: AppNavigateFn | null = null;
 /**
  * Wire React Router's navigate from the app shell (Shopify `app.tsx` or Vite `App.tsx`).
  * Full `window.location.assign` inside Admin iframes can surface a blank page that only
- * shows "200" (auth/session-token.data rendered as a document — shopify-app-js#3112).
+ * shows "200" (auth/session-token.data rendered as a document - shopify-app-js#3112).
  */
 export function registerAppNavigate(fn: AppNavigateFn | null): void {
   registeredNavigate = fn;

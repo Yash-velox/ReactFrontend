@@ -48,7 +48,7 @@ function stopRowClick(event: { stopPropagation: () => void }) {
 }
 
 function externalLink(href: string | null | undefined, label: string, title?: string) {
-  if (!href) return "—";
+  if (!href) return "-";
   return (
     <a
       className="aone-text-link"
@@ -483,7 +483,7 @@ export default function JobsPage() {
                             className="aone-table-cell-truncate"
                             title={item.skipReason ?? item.failureReason ?? undefined}
                           >
-                            {item.skipReason ?? item.failureReason ?? "—"}
+                            {item.skipReason ?? item.failureReason ?? "-"}
                           </td>
                         </tr>
                       ))}

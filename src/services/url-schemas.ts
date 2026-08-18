@@ -23,21 +23,21 @@ export const endpoints = {
   health: `${API_BASE_URL}/health`,
   tenantCheckConfig: `${API_BASE_URL}/tenant/checkConfig`,
 
-  // Week 2 — catalog sync
+  // Week 2 - catalog sync
   syncCatalog: `${API_BASE_URL}/api/sync/catalog`,
   syncStatus: `${API_BASE_URL}/api/sync/status`,
   syncRuns: `${API_BASE_URL}/api/sync/runs`,
   syncRunDetail: (runId: string) => `${API_BASE_URL}/api/sync/runs/${runId}`,
 
-  // Week 2 — settings
+  // Week 2 - settings
   settings: `${API_BASE_URL}/api/settings`,
 
-  // Week 2 — secondary queue
+  // Week 2 - secondary queue
   secondaryQueueSummary: `${API_BASE_URL}/api/secondary-queue/summary`,
   secondaryQueueList: `${API_BASE_URL}/api/secondary-queue`,
   secondaryQueueItem: (itemId: string) => `${API_BASE_URL}/api/secondary-queue/${itemId}`,
 
-  // Week 2 — batches
+  // Week 2 - batches
   batchesList: `${API_BASE_URL}/api/batches`,
   batchesManual: `${API_BASE_URL}/api/batches/manual`,
   batchDetail: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}`,
@@ -110,7 +110,7 @@ export const endpoints = {
   promptStep: (stepId: string) => `${API_BASE_URL}/api/prompts/steps/${stepId}`,
   promptStepStatus: (stepId: string) => `${API_BASE_URL}/api/prompts/steps/${stepId}/status`,
 
-  // Legacy queue (Phase 1 — unused in Week 2 UI)
+  // Legacy queue (Phase 1 - unused in Week 2 UI)
   queueSummary: `${API_BASE_URL}/api/processing-queue/summary`,
   queueList: `${API_BASE_URL}/api/processing-queue`,
   queueItem: (itemId: string) => `${API_BASE_URL}/api/processing-queue/${itemId}`,

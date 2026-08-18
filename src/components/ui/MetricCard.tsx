@@ -9,7 +9,7 @@ type Props = {
   valueTitle?: string;
   /** Explains what the card counts. Shown on hover. */
   hint?: string;
-  /** Optional status badge paired with metric — never color-only value */
+  /** Optional status badge paired with metric - never color-only value */
   badgeTone?: BadgeTone;
   badgeLabel?: string;
   loading?: boolean;

@@ -16,7 +16,7 @@ type Props = {
 const HTTP_URL = /^https?:\/\/\S+$/i;
 
 function renderDetailValue(value: ReactNode): ReactNode {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "string" && HTTP_URL.test(value.trim())) {
     const href = value.trim();
     return (
@@ -51,6 +51,6 @@ export default function RowDetailDialog({ open, title, fields, onClose }: Props)
 
 /** Display helper for empty / null modal values. */
 export function detailText(value?: string | number | null): string {
-  if (value === null || value === undefined || value === "") return "—";
+  if (value === null || value === undefined || value === "") return "-";
   return String(value);
 }

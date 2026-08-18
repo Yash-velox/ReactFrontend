@@ -4,7 +4,7 @@ import App from "./App";
 
 const rootEl = document.getElementById("root");
 if (!rootEl) {
-  throw new Error("Missing #root element — check index.html");
+  throw new Error("Missing #root element - check index.html");
 }
 
 createRoot(rootEl).render(
