@@ -4,7 +4,6 @@ import AonePage from "../components/ui/AonePage";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
-import LoadingOverlay from "../components/ui/LoadingOverlay";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ReprocessPromptDialog, {
   type ReprocessPreview,
@@ -228,7 +227,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [forceConfirmChecked, setForceConfirmChecked] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [loaderMessage, setLoaderMessage] = useState<string | null>(null);
+  const [refreshingImages, setRefreshingImages] = useState(false);
   const [rollbackOp, setRollbackOp] = useState<RollbackOperation | null>(null);
   const [liveMedia, setLiveMedia] = useState<LiveMediaItem[]>([]);
   const [selectedLiveGids, setSelectedLiveGids] = useState<string[]>([]);
@@ -247,9 +246,10 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     [rollbackOp?.conflictDetails],
   );
 
-  const loadVersions = useCallback(async () => {
+  const loadVersions = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!productId) return;
-    setLoading(true);
+    if (opts?.quiet) setRefreshingImages(true);
+    else setLoading(true);
     try {
       const res = await authenticatedFetch(endpoints.productMediaVersions(productId));
       const data = await parseApiResponse<{ items: MediaVersion[]; liveMedia?: LiveMediaItem[] }>(res);
@@ -276,6 +276,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
       setError(err instanceof Error ? err.message : "Failed to load versions");
     } finally {
       setLoading(false);
+      setRefreshingImages(false);
     }
   }, [authenticatedFetch, productId]);
 
@@ -303,8 +304,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           if (!ACTIVE_ROLLBACK.has(data.status)) {
             stopPoll();
             setBusy(false);
-            setLoaderMessage(null);
-            void loadVersions();
+            void loadVersions({ quiet: true });
           }
         } catch {
           // keep polling; transient errors are ok
@@ -320,7 +320,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     setBusy(true);
     setConfirmChecked(false);
     setPreviewVersionId(versionId);
-    setLoaderMessage("Loading version…");
     try {
       const res = await authenticatedFetch(endpoints.productRollbackPreview(productId, versionId));
       const data = await parseApiResponse<RollbackPreview>(res);
@@ -331,14 +330,12 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
       setError(err instanceof Error ? err.message : "Failed to load rollback preview");
     } finally {
       setBusy(false);
-      setLoaderMessage(null);
     }
   };
 
   const confirmRollback = async () => {
     if (!previewVersionId || !confirmChecked) return;
     setBusy(true);
-    setLoaderMessage("Reverting images…");
     try {
       const res = await authenticatedFetch(endpoints.productRollback(productId, previewVersionId), {
         method: "POST",
@@ -357,7 +354,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start rollback");
       setBusy(false);
-      setLoaderMessage(null);
     }
   };
 
@@ -365,7 +361,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     if (!rollbackOp?.operationId) return;
     if (forceDespiteConflict && !forceConfirmChecked) return;
     setBusy(true);
-    setLoaderMessage("Reverting images…");
     try {
       const res = await authenticatedFetch(endpoints.rollbackOperationRetry(rollbackOp.operationId), {
         method: "POST",
@@ -384,7 +379,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to retry rollback");
       setBusy(false);
-      setLoaderMessage(null);
     }
   };
 
@@ -425,6 +419,8 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const continuingToPrompt = useRef(false);
 
   const reprocessBlocked = busy || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status));
+  const imagesReloading =
+    refreshingImages || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status));
 
   const closeReprocessDialog = () => {
     setReprocessOpen(false);
@@ -649,13 +645,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                 ) : null}
               </div>
             </div>
-            {ACTIVE_ROLLBACK.has(rollbackOp.status) ? (
-              <div className="aone-inline-loader" role="status" aria-live="polite">
-                <div className="aone-spinner" aria-hidden="true" />
-                <span>Reverting images…</span>
-              </div>
-            ) : null}
-
             {rollbackOp.lastErrorMessage &&
             !(rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0) ? (
               <p className="aone-rollback-panel-message">{rollbackOp.lastErrorMessage}</p>
@@ -738,52 +727,60 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </div>
         ) : null}
 
-        {activeSnapshotMedia.length > 0 ? (
+        {activeSnapshotMedia.length > 0 || imagesReloading ? (
           <s-section heading={activeVersionNumber != null ? `Active snapshot · v${activeVersionNumber}` : "Active snapshot"}>
             <div className="aone-snapshot">
               <p className="aone-snapshot-intro">
                 {`Images currently live on this product from version${activeVersionNumber != null ? ` v${activeVersionNumber}` : ""} · ${activeSnapshotMedia.length} image${activeSnapshotMedia.length === 1 ? "" : "s"}`}
               </p>
-              <div className="aone-snapshot-gallery">
-                {activeSnapshotMedia.map((tile) => (
-                  <figure
-                    key={tile.key}
-                    className={`aone-snapshot-card${tile.isGenerated ? " is-generated" : ""}${tile.isOriginal ? " is-original" : ""}`}
-                    title={tile.title}
-                  >
-                    <div className="aone-snapshot-card-media">
-                      {tile.cdnUrl ? (
-                        <img
-                          src={tile.cdnUrl}
-                          alt={tile.title}
-                          className="aone-snapshot-card-img"
-                        />
-                      ) : (
-                        <div className="aone-snapshot-card-fallback">No preview</div>
-                      )}
-                      {tile.isGenerated || tile.isOriginal ? (
-                        <span
-                          className={`aone-snapshot-badge${tile.isGenerated ? " is-generated" : " is-original"}`}
-                        >
-                          {tile.isGenerated ? "Generated" : "Original"}
-                        </span>
-                      ) : null}
-                    </div>
-                    <figcaption className="aone-snapshot-card-meta">
-                      <span className="aone-snapshot-card-label">{tile.label}</span>
-                      {tile.subtitle ? (
-                        <span className="aone-snapshot-card-filename" title={tile.title}>
-                          {tile.subtitle}
-                        </span>
-                      ) : null}
-                      {typeof tile.fileSizeBytes === "number" ? (
-                        <span className="aone-snapshot-card-size">
-                          {Math.round(tile.fileSizeBytes / 1024)} KB
-                        </span>
-                      ) : null}
-                    </figcaption>
-                  </figure>
-                ))}
+              <div className={`aone-snapshot-gallery-wrap${imagesReloading ? " is-loading" : ""}`}>
+                <div className="aone-snapshot-gallery">
+                  {activeSnapshotMedia.map((tile) => (
+                    <figure
+                      key={tile.key}
+                      className={`aone-snapshot-card${tile.isGenerated ? " is-generated" : ""}${tile.isOriginal ? " is-original" : ""}`}
+                      title={tile.title}
+                    >
+                      <div className="aone-snapshot-card-media">
+                        {tile.cdnUrl ? (
+                          <img
+                            src={tile.cdnUrl}
+                            alt={tile.title}
+                            className="aone-snapshot-card-img"
+                          />
+                        ) : (
+                          <div className="aone-snapshot-card-fallback">No preview</div>
+                        )}
+                        {tile.isGenerated || tile.isOriginal ? (
+                          <span
+                            className={`aone-snapshot-badge${tile.isGenerated ? " is-generated" : " is-original"}`}
+                          >
+                            {tile.isGenerated ? "Generated" : "Original"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <figcaption className="aone-snapshot-card-meta">
+                        <span className="aone-snapshot-card-label">{tile.label}</span>
+                        {tile.subtitle ? (
+                          <span className="aone-snapshot-card-filename" title={tile.title}>
+                            {tile.subtitle}
+                          </span>
+                        ) : null}
+                        {typeof tile.fileSizeBytes === "number" ? (
+                          <span className="aone-snapshot-card-size">
+                            {Math.round(tile.fileSizeBytes / 1024)} KB
+                          </span>
+                        ) : null}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+                {imagesReloading ? (
+                  <div className="aone-snapshot-loader" role="status" aria-live="polite">
+                    <div className="aone-spinner" aria-hidden="true" />
+                    <span>Updating images…</span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </s-section>
@@ -933,17 +930,6 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </s-stack>
         ) : null}
       </ConfirmDialog>
-      <LoadingOverlay
-        open={
-          Boolean(loaderMessage) || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))
-        }
-        label={loaderMessage || "Reverting images…"}
-        detail={
-          rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status) && rollbackOp.currentStage
-            ? `Stage: ${rollbackOp.currentStage}`
-            : undefined
-        }
-      />
     </AonePage>
   );
 }

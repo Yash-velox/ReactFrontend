@@ -80,12 +80,8 @@ textarea:focus-visible {
   box-sizing: border-box;
 }
 
-.aone-metric.has-hint {
-  cursor: help;
-}
-
-.aone-metric.has-hint:hover,
-.aone-metric.has-hint:focus-within {
+.aone-metric.has-hint:has(.aone-metric-hint:hover),
+.aone-metric.has-hint:has(.aone-metric-hint:focus-visible) {
   z-index: 21;
 }
 
@@ -101,11 +97,42 @@ textarea:focus-visible {
   color: var(--aone-text-subdued);
 }
 
+.aone-metric-hint {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: help;
+  line-height: 0;
+}
+
+.aone-metric-hint:hover,
+.aone-metric-hint:focus-visible {
+  color: var(--aone-text);
+}
+
+.aone-metric-hint:focus-visible {
+  outline: 2px solid var(--aone-focus);
+  outline-offset: 2px;
+}
+
 .aone-metric-info {
   display: inline-flex;
   color: var(--aone-text-subdued);
   opacity: 0.75;
   flex-shrink: 0;
+}
+
+.aone-metric-hint:hover .aone-metric-info,
+.aone-metric-hint:focus-visible .aone-metric-info {
+  opacity: 1;
+  color: inherit;
 }
 
 .aone-metric-tooltip {
@@ -144,8 +171,8 @@ textarea:focus-visible {
   filter: drop-shadow(0 -1px 0 var(--aone-border));
 }
 
-.aone-metric.has-hint:hover .aone-metric-tooltip,
-.aone-metric.has-hint:focus-within .aone-metric-tooltip {
+.aone-metric-hint:hover + .aone-metric-tooltip,
+.aone-metric-hint:focus-visible + .aone-metric-tooltip {
   display: block;
 }
 
@@ -2040,6 +2067,35 @@ a.aone-overflow-item:visited {
   width: 100%;
 }
 
+.aone-snapshot-gallery-wrap {
+  position: relative;
+}
+
+.aone-snapshot-gallery-wrap.is-loading {
+  min-height: 180px;
+}
+
+.aone-snapshot-gallery-wrap.is-loading .aone-snapshot-gallery {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.aone-snapshot-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--aone-radius-md);
+  background: color-mix(in srgb, #fff 62%, transparent);
+  color: var(--aone-text);
+  font-size: 13px;
+  font-weight: 550;
+}
+
 .aone-snapshot-card {
   margin: 0;
   display: flex;
@@ -2333,47 +2389,7 @@ a.aone-overflow-item:visited {
   gap: var(--aone-space-2);
 }
 
-/* ── Blocking loader overlay (revert / long actions) ── */
-.aone-loading-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--aone-space-4);
-  background: color-mix(in srgb, #fff 72%, transparent);
-  box-sizing: border-box;
-}
-
-.aone-loading-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--aone-space-3);
-  min-width: 220px;
-  max-width: 360px;
-  padding: var(--aone-space-5) var(--aone-space-4);
-  border: 1px solid var(--aone-border);
-  border-radius: var(--aone-radius-md);
-  background: #fff;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
-  text-align: center;
-}
-
-.aone-loading-label {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 650;
-  color: var(--aone-text);
-}
-
-.aone-loading-detail {
-  margin: 0;
-  font-size: 12px;
-  color: var(--aone-text-subdued);
-}
-
+/* ── Inline loader (confirm dialog / image gallery) ── */
 .aone-inline-loader {
   display: flex;
   align-items: center;

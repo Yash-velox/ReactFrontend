@@ -1,5 +1,6 @@
 import { toTitleCase } from "../../utils/format";
 import { type BadgeTone, MetricToneBadge } from "./StatusBadge";
+import { useId } from "react";
 
 type Props = {
   label: string;
@@ -40,6 +41,7 @@ export default function MetricCard({
   loading,
 }: Props) {
   const displayLabel = toTitleCase(label);
+  const hintId = useId();
 
   if (loading) {
     return (
@@ -51,16 +53,21 @@ export default function MetricCard({
   }
 
   return (
-    <div
-      className={hint ? "aone-metric has-hint" : "aone-metric"}
-      aria-label={hint ? `${displayLabel}. ${hint}` : undefined}
-      tabIndex={hint ? 0 : undefined}
-    >
+    <div className={hint ? "aone-metric has-hint" : "aone-metric"}>
       <p className="aone-metric-label">
         <span>{displayLabel}</span>
-        {hint ? <InfoMark /> : null}
         {hint ? (
-          <span className="aone-metric-tooltip" role="tooltip">
+          <button
+            type="button"
+            className="aone-metric-hint"
+            aria-label={hint}
+            aria-describedby={hintId}
+          >
+            <InfoMark />
+          </button>
+        ) : null}
+        {hint ? (
+          <span id={hintId} className="aone-metric-tooltip" role="tooltip">
             {hint}
           </span>
         ) : null}
