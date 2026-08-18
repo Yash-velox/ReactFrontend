@@ -171,7 +171,7 @@ export default function ProductsPage() {
             {showSyncBusy ? (
               <ProgressBar
                 label="Syncing catalog…"
-                detail={`${liveProducts} products · ${liveMedia} media so far`}
+                detail={`${liveProducts} products · ${liveMedia} media found & synced`}
                 value={progressValue}
               />
             ) : latest ? (

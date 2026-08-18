@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import EmptyState from "./EmptyState";
 import { useModalOverlay } from "./useModalOverlay";
 import { endpoints } from "../../services/url-schemas";
@@ -42,31 +42,6 @@ type Props = {
 };
 
 const PAGE_SIZE = 25;
-const IMAGE_PREVIEW_SIZE = 280;
-const IMAGE_PREVIEW_GAP = 12;
-const IMAGE_PREVIEW_PAD = 16;
-
-type HoverPreview = {
-  url: string;
-  left: number;
-  top: number;
-};
-
-function previewPosition(thumb: DOMRect, picker: DOMRect): { left: number; top: number } {
-  const size = IMAGE_PREVIEW_SIZE;
-  let left = thumb.right - picker.left + IMAGE_PREVIEW_GAP;
-  if (left + size > picker.width - IMAGE_PREVIEW_PAD) {
-    left = thumb.left - picker.left - IMAGE_PREVIEW_GAP - size;
-  }
-  if (left < IMAGE_PREVIEW_PAD) left = IMAGE_PREVIEW_PAD;
-
-  let top = thumb.top - picker.top;
-  if (top + size > picker.height - IMAGE_PREVIEW_PAD) {
-    top = picker.height - size - IMAGE_PREVIEW_PAD;
-  }
-  if (top < IMAGE_PREVIEW_PAD) top = IMAGE_PREVIEW_PAD;
-  return { left, top };
-}
 
 function FilterCaret() {
   return (
@@ -111,25 +86,17 @@ export default function ProductPickerDialog({
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
 
   const [selected, setSelected] = useState<Map<string, string | undefined>>(new Map());
-  const [hoverPreview, setHoverPreview] = useState<HoverPreview | null>(null);
+  const [hoverPreviewUrl, setHoverPreviewUrl] = useState<string | null>(null);
   const searchTimer = useRef<number | undefined>(undefined);
   const initialized = useRef(false);
   const typeMenuRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
-  const pickerRef = useRef<HTMLDivElement | null>(null);
 
-  const hideHoverPreview = useCallback(() => setHoverPreview(null), []);
+  const hideHoverPreview = useCallback(() => setHoverPreviewUrl(null), []);
 
-  const showHoverPreview = useCallback((event: ReactMouseEvent<HTMLElement>, imageUrl?: string | null) => {
+  const showHoverPreview = useCallback((imageUrl?: string | null) => {
     if (!imageUrl) return;
-    const picker = pickerRef.current;
-    if (!picker) return;
-    const thumb =
-      event.currentTarget.querySelector(".aone-picker-thumb") ?? event.currentTarget;
-    setHoverPreview({
-      url: imageUrl,
-      ...previewPosition(thumb.getBoundingClientRect(), picker.getBoundingClientRect()),
-    });
+    setHoverPreviewUrl(imageUrl);
   }, []);
 
   useEffect(() => {
@@ -144,7 +111,7 @@ export default function ProductPickerDialog({
   useEffect(() => {
     if (!open) {
       initialized.current = false;
-      setHoverPreview(null);
+      setHoverPreviewUrl(null);
       return;
     }
     if (!initialized.current) {
@@ -219,7 +186,7 @@ export default function ProductPickerDialog({
   }, [open, loadPage]);
 
   useEffect(() => {
-    setHoverPreview(null);
+    setHoverPreviewUrl(null);
   }, [page, debouncedSearch, productType, status]);
 
   const selectedCount = selected.size;
@@ -306,7 +273,7 @@ export default function ProductPickerDialog({
 
   return (
     <s-modal id={modalId} ref={modalRef} heading="Add products" size="large">
-      <div className="aone-picker" ref={pickerRef}>
+      <div className="aone-picker">
         <div className="aone-picker-search-row">
           <div className="aone-picker-search">
             <span className="aone-picker-search-icon" aria-hidden="true">
@@ -488,7 +455,7 @@ export default function ProductPickerDialog({
                   type="button"
                   className={`aone-picker-row${checked ? " is-selected" : ""}`}
                   onClick={() => toggleOne(product)}
-                  onMouseEnter={(event) => showHoverPreview(event, product.imageUrl)}
+                  onMouseEnter={() => showHoverPreview(product.imageUrl)}
                   onMouseLeave={hideHoverPreview}
                 >
                   <input
@@ -544,13 +511,9 @@ export default function ProductPickerDialog({
           </div>
         </div>
 
-        {hoverPreview ? (
-          <div
-            className="aone-picker-image-preview"
-            style={{ left: hoverPreview.left, top: hoverPreview.top }}
-            aria-hidden="true"
-          >
-            <img src={hoverPreview.url} alt="" />
+        {hoverPreviewUrl ? (
+          <div className="aone-picker-image-preview" aria-hidden="true">
+            <img src={hoverPreviewUrl} alt="" />
           </div>
         ) : null}
 

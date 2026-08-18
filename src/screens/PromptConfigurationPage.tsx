@@ -1,3 +1,20 @@
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useRef, useState } from "react";
 import ConfirmDialog from "../components/ui/ConfirmDialog";
 import AonePage from "../components/ui/AonePage";
@@ -35,6 +52,96 @@ const emptyForm = (): StepFormState => ({
   isEnabled: true,
 });
 
+function GripIcon() {
+  return (
+    <svg width="12" height="16" viewBox="0 0 12 16" aria-hidden="true" focusable="false">
+      <circle cx="3" cy="3" r="1.35" fill="currentColor" />
+      <circle cx="9" cy="3" r="1.35" fill="currentColor" />
+      <circle cx="3" cy="8" r="1.35" fill="currentColor" />
+      <circle cx="9" cy="8" r="1.35" fill="currentColor" />
+      <circle cx="3" cy="13" r="1.35" fill="currentColor" />
+      <circle cx="9" cy="13" r="1.35" fill="currentColor" />
+    </svg>
+  );
+}
+
+type SortableStepRowProps = {
+  step: PromptStep;
+  dragDisabled: boolean;
+  menuOpen: boolean;
+  busy: boolean;
+  onToggleMenu: () => void;
+  menuTriggerRef: (node: HTMLButtonElement | null) => void;
+};
+
+function SortableStepRow({
+  step,
+  dragDisabled,
+  menuOpen,
+  busy,
+  onToggleMenu,
+  menuTriggerRef,
+}: SortableStepRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: step.id,
+    disabled: dragDisabled,
+  });
+
+  return (
+    <tr
+      ref={setNodeRef}
+      className={isDragging ? "aone-sortable-row is-dragging" : "aone-sortable-row"}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+      }}
+    >
+      <td className="aone-col-order">
+        <div className="aone-order-cell">
+          <button
+            type="button"
+            className="aone-drag-handle"
+            title={`Reorder ${step.name}`}
+            disabled={dragDisabled}
+            {...attributes}
+            {...listeners}
+            aria-label={`Reorder ${step.name}`}
+          >
+            <GripIcon />
+          </button>
+          <span>{step.stepOrder}</span>
+        </div>
+      </td>
+      <td>
+        <strong>{step.name}</strong>
+      </td>
+      <td className="aone-col-preview" title={step.promptText}>
+        {truncate(step.promptText, 100)}
+      </td>
+      <td className="aone-col-status">
+        <StatusBadge status={step.isEnabled ? "ENABLED" : "DISABLED"} />
+      </td>
+      <td className="aone-col-actions">
+        <div className="aone-step-actions">
+          <button
+            type="button"
+            className="aone-icon-btn aone-overflow-trigger"
+            title="More actions"
+            aria-label={`More actions for ${step.name}`}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            disabled={busy}
+            ref={menuTriggerRef}
+            onClick={onToggleMenu}
+          >
+            ⋮
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 type Props = {
   /** When rendered from Shopify Remix routes, pass the param explicitly. */
   productTypeId?: string;
@@ -67,6 +174,8 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
   const [deleteProductTypeOpen, setDeleteProductTypeOpen] = useState(false);
   const [deletingProductType, setDeletingProductType] = useState(false);
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
+  const reorderingRef = useRef(false);
   const [menuStepId, setMenuStepId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [systemPromptText, setSystemPromptText] = useState("");
@@ -133,6 +242,12 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
       window.removeEventListener("scroll", onReposition, true);
     };
   }, [menuStepId, closeStepMenu, openStepMenu]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const load = useCallback(async () => {
     if (!productTypeId) return;
     setLoading(true);
@@ -342,31 +457,42 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
     }
   };
 
-  const moveStep = async (step: PromptStep, direction: -1 | 1) => {
-    if (!detail) return;
-    const ordered = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
-    const index = ordered.findIndex((s) => s.id === step.id);
-    const swapWith = index + direction;
-    if (index < 0 || swapWith < 0 || swapWith >= ordered.length) return;
-    const next = [...ordered];
-    const tmp = next[index];
-    next[index] = next[swapWith];
-    next[swapWith] = tmp;
-    setBusyStepId(step.id);
+  const persistReorder = async (nextSteps: PromptStep[]) => {
+    if (!detail || reorderingRef.current) return;
+    reorderingRef.current = true;
+    setReordering(true);
+    const previous = detail;
+    const withOrder = nextSteps.map((step, index) => ({
+      ...step,
+      stepOrder: index + 1,
+    }));
+    setDetail({ ...detail, steps: withOrder });
     setError("");
     try {
-      await parseApiResponse(
+      const data = await parseApiResponse<{ items: PromptStep[] }>(
         await authenticatedFetch(endpoints.promptProductTypeStepsReorder(detail.productTypeId), {
           method: "PUT",
-          body: JSON.stringify({ stepIds: next.map((s) => s.id) }),
+          body: JSON.stringify({ stepIds: withOrder.map((s) => s.id) }),
         }),
       );
-      await load();
+      setDetail((current) => (current ? { ...current, steps: data.items } : current));
     } catch (err) {
+      setDetail(previous);
       setError(err instanceof Error ? err.message : "Failed to reorder steps");
     } finally {
-      setBusyStepId(null);
+      reorderingRef.current = false;
+      setReordering(false);
     }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!detail || !over || String(active.id) === String(over.id)) return;
+    const ordered = [...detail.steps].sort((a, b) => a.stepOrder - b.stepOrder);
+    const oldIndex = ordered.findIndex((item) => item.id === String(active.id));
+    const newIndex = ordered.findIndex((item) => item.id === String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    void persistReorder(arrayMove(ordered, oldIndex, newIndex));
   };
 
   const confirmDeleteStep = async () => {
@@ -550,76 +676,48 @@ export default function PromptConfigurationPage({ productTypeId: productTypeIdPr
           />
         ) : (
           <>
-            <DataTable>
-              <thead>
-                <tr>
-                  <th className="aone-col-order">Order</th>
-                  <th>Prompt title</th>
-                  <th>Prompt Preview</th>
-                  <th className="aone-col-status">Status</th>
-                  <th className="aone-col-actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {steps.map((step, index) => (
-                  <tr key={step.id}>
-                    <td className="aone-col-order">{step.stepOrder}</td>
-                    <td>
-                      <strong>{step.name}</strong>
-                    </td>
-                    <td className="aone-col-preview" title={step.promptText}>
-                      {truncate(step.promptText, 100)}
-                    </td>
-                    <td className="aone-col-status">
-                      <StatusBadge status={step.isEnabled ? "ENABLED" : "DISABLED"} />
-                    </td>
-                    <td className="aone-col-actions">
-                      <div className="aone-step-actions">
-                        <button
-                          type="button"
-                          className="aone-icon-btn"
-                          title="Move up"
-                          aria-label={`Move ${step.name} up`}
-                          onClick={() => void moveStep(step, -1)}
-                          disabled={index === 0 || busyStepId === step.id}
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          className="aone-icon-btn"
-                          title="Move down"
-                          aria-label={`Move ${step.name} down`}
-                          onClick={() => void moveStep(step, 1)}
-                          disabled={index === steps.length - 1 || busyStepId === step.id}
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          className="aone-icon-btn aone-overflow-trigger"
-                          title="More actions"
-                          aria-label={`More actions for ${step.name}`}
-                          aria-haspopup="menu"
-                          aria-expanded={menuStepId === step.id}
-                          disabled={busyStepId === step.id}
-                          ref={(node) => {
-                            if (node) menuTriggerRefs.current.set(step.id, node);
-                            else menuTriggerRefs.current.delete(step.id);
-                          }}
-                          onClick={() => {
-                            if (menuStepId === step.id) closeStepMenu();
-                            else openStepMenu(step.id);
-                          }}
-                        >
-                          ⋮
-                        </button>
-                      </div>
-                    </td>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={closeStepMenu}
+              onDragEnd={handleDragEnd}
+            >
+              <DataTable>
+                <thead>
+                  <tr>
+                    <th className="aone-col-order">Order</th>
+                    <th>Prompt title</th>
+                    <th>Prompt Preview</th>
+                    <th className="aone-col-status">Status</th>
+                    <th className="aone-col-actions">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </DataTable>
+                </thead>
+                <SortableContext
+                  items={steps.map((step) => step.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <tbody>
+                    {steps.map((step) => (
+                      <SortableStepRow
+                        key={step.id}
+                        step={step}
+                        dragDisabled={reordering || steps.length < 2}
+                        menuOpen={menuStepId === step.id}
+                        busy={reordering || busyStepId === step.id}
+                        onToggleMenu={() => {
+                          if (menuStepId === step.id) closeStepMenu();
+                          else openStepMenu(step.id);
+                        }}
+                        menuTriggerRef={(node) => {
+                          if (node) menuTriggerRefs.current.set(step.id, node);
+                          else menuTriggerRefs.current.delete(step.id);
+                        }}
+                      />
+                    ))}
+                  </tbody>
+                </SortableContext>
+              </DataTable>
+            </DndContext>
             <div className="aone-config-steps-footer">
               <s-button variant="primary" onClick={openAddStep}>
                 + Add Prompt Step

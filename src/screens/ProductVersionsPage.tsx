@@ -4,6 +4,7 @@ import AonePage from "../components/ui/AonePage";
 import DataTable from "../components/ui/DataTable";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorBanner from "../components/ui/ErrorBanner";
+import LoadingOverlay from "../components/ui/LoadingOverlay";
 import PageSkeleton from "../components/ui/PageSkeleton";
 import ReprocessPromptDialog, {
   type ReprocessPreview,
@@ -227,6 +228,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [confirmChecked, setConfirmChecked] = useState(false);
   const [forceConfirmChecked, setForceConfirmChecked] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [loaderMessage, setLoaderMessage] = useState<string | null>(null);
   const [rollbackOp, setRollbackOp] = useState<RollbackOperation | null>(null);
   const [liveMedia, setLiveMedia] = useState<LiveMediaItem[]>([]);
   const [selectedLiveGids, setSelectedLiveGids] = useState<string[]>([]);
@@ -300,6 +302,8 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           setRollbackOp(data);
           if (!ACTIVE_ROLLBACK.has(data.status)) {
             stopPoll();
+            setBusy(false);
+            setLoaderMessage(null);
             void loadVersions();
           }
         } catch {
@@ -315,22 +319,26 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const openPreview = async (versionId: string) => {
     setBusy(true);
     setConfirmChecked(false);
+    setPreviewVersionId(versionId);
+    setLoaderMessage("Loading version…");
     try {
       const res = await authenticatedFetch(endpoints.productRollbackPreview(productId, versionId));
       const data = await parseApiResponse<RollbackPreview>(res);
       setPreview(data);
-      setPreviewVersionId(versionId);
       setError("");
     } catch (err) {
+      setPreviewVersionId(null);
       setError(err instanceof Error ? err.message : "Failed to load rollback preview");
     } finally {
       setBusy(false);
+      setLoaderMessage(null);
     }
   };
 
   const confirmRollback = async () => {
     if (!previewVersionId || !confirmChecked) return;
     setBusy(true);
+    setLoaderMessage("Reverting images…");
     try {
       const res = await authenticatedFetch(endpoints.productRollback(productId, previewVersionId), {
         method: "POST",
@@ -348,8 +356,8 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
       pollOperation(data.operationId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to start rollback");
-    } finally {
       setBusy(false);
+      setLoaderMessage(null);
     }
   };
 
@@ -357,6 +365,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     if (!rollbackOp?.operationId) return;
     if (forceDespiteConflict && !forceConfirmChecked) return;
     setBusy(true);
+    setLoaderMessage("Reverting images…");
     try {
       const res = await authenticatedFetch(endpoints.rollbackOperationRetry(rollbackOp.operationId), {
         method: "POST",
@@ -374,8 +383,8 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
       pollOperation(data.operationId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to retry rollback");
-    } finally {
       setBusy(false);
+      setLoaderMessage(null);
     }
   };
 
@@ -640,6 +649,12 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                 ) : null}
               </div>
             </div>
+            {ACTIVE_ROLLBACK.has(rollbackOp.status) ? (
+              <div className="aone-inline-loader" role="status" aria-live="polite">
+                <div className="aone-spinner" aria-hidden="true" />
+                <span>Reverting images…</span>
+              </div>
+            ) : null}
 
             {rollbackOp.lastErrorMessage &&
             !(rollbackOp.status === "ROLLBACK_CONFLICT" && conflictLines.length > 0) ? (
@@ -833,7 +848,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                             disabled={reprocessBlocked}
                             onClick={() => void openPreview(v.versionId)}
                           >
-                            Revert
+                            {busy && !preview && previewVersionId === v.versionId ? "Loading…" : "Revert"}
                           </s-button>
                         ) : (
                           <span className="aone-field-hint" title={v.unavailableReason || undefined}>
@@ -880,8 +895,10 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
         title="Revert product images"
         message="This restores the complete selected image version for this product on Shopify. Shared files used by other products are not deleted."
         confirmLabel="Revert Product"
+        busyLabel="Reverting…"
         tone="critical"
-        busy={busy || !confirmChecked || Boolean(preview && (!preview.eligible || preview.alreadyActive))}
+        busy={busy}
+        confirmDisabled={!confirmChecked || Boolean(preview && (!preview.eligible || preview.alreadyActive))}
         onConfirm={() => void confirmRollback()}
         onCancel={() => {
           if (!busy) {
@@ -906,6 +923,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
               <input
                 type="checkbox"
                 checked={confirmChecked}
+                disabled={busy}
                 onChange={(e) => setConfirmChecked(e.target.checked)}
               />
               <span>
@@ -915,6 +933,17 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
           </s-stack>
         ) : null}
       </ConfirmDialog>
+      <LoadingOverlay
+        open={
+          Boolean(loaderMessage) || Boolean(rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status))
+        }
+        label={loaderMessage || "Reverting images…"}
+        detail={
+          rollbackOp && ACTIVE_ROLLBACK.has(rollbackOp.status) && rollbackOp.currentStage
+            ? `Stage: ${rollbackOp.currentStage}`
+            : undefined
+        }
+      />
     </AonePage>
   );
 }

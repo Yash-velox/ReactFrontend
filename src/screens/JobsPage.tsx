@@ -370,30 +370,35 @@ export default function JobsPage() {
                   value={secondarySummary?.pending ?? 0}
                   badgeTone="caution"
                   badgeLabel="Awaiting"
+                  hint="Shopify product updates waiting to be added to a processing batch."
                 />
                 <MetricCard
                   label="Claimed"
                   value={secondarySummary?.claimed ?? 0}
                   badgeTone="info"
                   badgeLabel="In progress"
+                  hint="Products currently being moved into a processing batch."
                 />
                 <MetricCard
                   label="Converted"
                   value={secondarySummary?.converted ?? 0}
                   badgeTone="success"
                   badgeLabel="Done"
+                  hint="Products that were successfully added to a processing batch."
                 />
                 <MetricCard
                   label="Skipped"
                   value={secondarySummary?.skipped ?? 0}
                   badgeTone="neutral"
                   badgeLabel="No delta"
+                  hint="No new eligible images were found, so these products were not processed."
                 />
                 <MetricCard
                   label="Failed"
                   value={secondarySummary?.failed ?? 0}
                   badgeTone="critical"
                   badgeLabel="Errors"
+                  hint="These products could not be added to a batch. Check Skip / failure in the table."
                 />
               </div>
 

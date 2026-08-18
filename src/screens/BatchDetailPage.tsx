@@ -554,12 +554,39 @@ export default function BatchDetailPage({ batchId: batchIdProp }: Props = {}) {
           <s-stack direction="block" gap="base">
             {TERMINAL_BATCH_STATUSES.has(batch.status) ? (
               <div className="aone-metrics">
-                <MetricCard label="Ready To Publish" value={publishSummary.ready} />
-                <MetricCard label="Queued" value={publishSummary.queued} />
-                <MetricCard label="Publishing" value={publishSummary.publishing} />
-                <MetricCard label="Published" value={publishSummary.published} badgeTone="success" />
-                <MetricCard label="Publish Failed" value={publishSummary.failed} badgeTone="critical" />
-                <MetricCard label="Conflict" value={publishSummary.conflict} badgeTone="caution" />
+                <MetricCard
+                  label="Ready To Publish"
+                  value={publishSummary.ready}
+                  hint="Enhanced images are finished and waiting to be sent to Shopify."
+                />
+                <MetricCard
+                  label="Queued"
+                  value={publishSummary.queued}
+                  hint="Publish to Shopify is waiting to start for these products."
+                />
+                <MetricCard
+                  label="Publishing"
+                  value={publishSummary.publishing}
+                  hint="Enhanced images are being uploaded and attached in Shopify."
+                />
+                <MetricCard
+                  label="Published"
+                  value={publishSummary.published}
+                  badgeTone="success"
+                  hint="Enhanced images are live on the store."
+                />
+                <MetricCard
+                  label="Publish Failed"
+                  value={publishSummary.failed}
+                  badgeTone="critical"
+                  hint="Shopify did not accept the publish. Open the product row for the error."
+                />
+                <MetricCard
+                  label="Conflict"
+                  value={publishSummary.conflict}
+                  badgeTone="caution"
+                  hint="The product's live images changed during publish. Review before retrying."
+                />
               </div>
             ) : null}
 

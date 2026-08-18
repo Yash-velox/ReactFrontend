@@ -7,8 +7,12 @@ type Props = {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Button label while `busy` is true. */
+  busyLabel?: string;
   tone?: "critical" | "auto";
   busy?: boolean;
+  /** Disable confirm without showing the loading state (e.g. checkbox not checked). */
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -20,8 +24,10 @@ export default function ConfirmDialog({
   message,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
+  busyLabel = "Working…",
   tone = "auto",
   busy = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
   children,
@@ -35,6 +41,12 @@ export default function ConfirmDialog({
       <s-stack direction="block" gap="base">
         <s-paragraph>{message}</s-paragraph>
         {children ? <div>{children}</div> : null}
+        {busy ? (
+          <div className="aone-inline-loader" role="status" aria-live="polite">
+            <div className="aone-spinner" aria-hidden="true" />
+            <span>{busyLabel}</span>
+          </div>
+        ) : null}
         <div className="aone-toolbar">
           <s-button onClick={dismiss} disabled={busy}>
             {cancelLabel}
@@ -43,9 +55,9 @@ export default function ConfirmDialog({
             variant="primary"
             tone={tone === "critical" ? "critical" : undefined}
             onClick={onConfirm}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
           >
-            {confirmLabel}
+            {busy ? busyLabel : confirmLabel}
           </s-button>
         </div>
       </s-stack>

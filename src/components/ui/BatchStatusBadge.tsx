@@ -10,7 +10,7 @@ const PROCESSING_PHASE_MAP: Record<string, StatusConfig> = {
   PREPARING_OPENAI_STAGE: { tone: "info", label: "Preparing AI job" },
   UPLOADING_BATCH_INPUT: { tone: "info", label: "Uploading to AI" },
   OPENAI_BATCH_SUBMITTED: { tone: "info", label: "AI job submitted" },
-  WAITING_FOR_OPENAI: { tone: "caution", label: "Waiting for AI" },
+  WAITING_FOR_OPENAI: { tone: "info", label: "Enhancing image" },
   COLLECTING_OPENAI_RESULTS: { tone: "info", label: "Collecting AI results" },
   IMPORTING_STAGE_RESULTS: { tone: "info", label: "Importing results" },
   RETRYING_FAILED_REQUESTS: { tone: "caution", label: "Retrying AI requests" },
@@ -46,7 +46,7 @@ type Props = {
   showTooltip?: boolean;
 };
 
-/** Batch row/detail badge: shows processing phase (e.g. Waiting for AI) instead of generic Processing. */
+/** Batch row/detail badge: shows processing phase (e.g. Enhancing image) instead of generic Processing. */
 export default function BatchStatusBadge({ status, processingPhase, showTooltip = true }: Props) {
   const config = getBatchStatusDisplay(status, processingPhase);
   const badge = <s-badge tone={config.tone}>{config.label}</s-badge>;
