@@ -89,6 +89,7 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [warning, setWarning] = useState("");
   const [selectedSecondary, setSelectedSecondary] = useState<SecondaryQueueItem | null>(null);
 
   const pollInFlight = useRef(false);
@@ -214,6 +215,7 @@ export default function JobsPage() {
   const openProductPicker = () => {
     setMessage("");
     setError("");
+    setWarning("");
     setPickerOpen(true);
   };
 
@@ -222,16 +224,19 @@ export default function JobsPage() {
     setCreatingBatch(true);
     setError("");
     setMessage("");
+    setWarning("");
     try {
       const chunks = chunkArray(pickedProducts, manualBatchLimit);
       const created: Batch[] = [];
+      const warnings: string[] = [];
       for (const chunk of chunks) {
         const response = await authenticatedFetch(endpoints.batchesManual, {
           method: "POST",
           body: JSON.stringify({ productGids: chunk.map((p) => p.id) }),
         });
-        const batch = await parseApiResponse<Batch>(response);
+        const batch = await parseApiResponse<Batch & { warnings?: string[] }>(response);
         created.push(batch);
+        if (batch.warnings?.length) warnings.push(...batch.warnings);
       }
       const totalProducts = created.reduce((sum, b) => sum + b.productCount, 0);
       const totalImages = created.reduce((sum, b) => sum + b.imageCount, 0);
@@ -245,6 +250,7 @@ export default function JobsPage() {
           `Created ${created.length} batches from ${totalProducts} product(s) (${totalImages} image(s)), split at ${manualBatchLimit} products per batch.`,
         );
       }
+      if (warnings.length) setWarning(warnings.join(" "));
       setPickedProducts([]);
       setBatchPage(1);
       await loadBatches(1);
@@ -272,6 +278,14 @@ export default function JobsPage() {
         <s-section>
           <s-banner tone="success" heading="Update">
             <s-paragraph>{message}</s-paragraph>
+          </s-banner>
+        </s-section>
+      ) : null}
+
+      {warning ? (
+        <s-section>
+          <s-banner tone="warning" heading="Some products skipped">
+            <s-paragraph>{warning}</s-paragraph>
           </s-banner>
         </s-section>
       ) : null}
