@@ -383,33 +383,19 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     }
   };
 
-  const liveTiles = useMemo(() => {
-    if (liveMedia.length > 0) {
-      return liveMedia
-        .slice()
-        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
-        .map((m, idx) => ({
-          key: m.mediaGid || m.fileGid || `live-${idx}`,
-          mediaGid: m.mediaGid || m.fileGid || "",
-          cdnUrl: m.cdnUrl,
-          label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
-          title: m.filename || m.altText || `Image ${idx + 1}`,
-        }))
-        .filter((t) => t.mediaGid);
-    }
-    const media = activeDetail?.media ?? [];
-    return media
+  const reprocessTiles = useMemo(() => {
+    return liveMedia
       .slice()
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map((m, idx) => ({
-        key: m.mediaGid || m.fileGid || `snap-${idx}`,
+        key: m.mediaGid || m.fileGid || `live-${idx}`,
         mediaGid: m.mediaGid || m.fileGid || "",
         cdnUrl: m.cdnUrl,
         label: `#${m.position ?? idx}${m.isPrimary ? " · Primary" : ""}`,
         title: m.filename || m.altText || `Image ${idx + 1}`,
       }))
       .filter((t) => t.mediaGid);
-  }, [liveMedia, activeDetail?.media]);
+  }, [liveMedia]);
 
   const toggleLiveImage = (mediaGid: string) => {
     setSelectedLiveGids((prev) =>
@@ -443,7 +429,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   };
 
   const openSelectDialog = () => {
-    if (reprocessBlocked || liveTiles.length === 0) return;
+    if (reprocessBlocked || reprocessTiles.length === 0) return;
     setMessage("");
     setReprocessWarning("");
     setError("");
@@ -849,7 +835,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
                       <div className="aone-table-actions">
                         <s-button
                           variant={v.isActive ? "primary" : undefined}
-                          disabled={reprocessBlocked || liveTiles.length === 0}
+                          disabled={reprocessBlocked || reprocessTiles.length === 0}
                           onClick={openSelectDialog}
                         >
                           Reprocess
@@ -878,11 +864,11 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
 
       <SelectLiveImagesDialog
         open={selectOpen}
-        images={liveTiles}
+        images={reprocessTiles}
         selectedGids={selectedLiveGids}
         busy={reprocessBusy}
         onToggle={toggleLiveImage}
-        onSelectAll={() => setSelectedLiveGids(liveTiles.map((t) => t.mediaGid))}
+        onSelectAll={() => setSelectedLiveGids(reprocessTiles.map((t) => t.mediaGid))}
         onClear={() => setSelectedLiveGids([])}
         onContinue={() => void openLiveReprocess()}
         onCancel={abortReprocessFlow}
