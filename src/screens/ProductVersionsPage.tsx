@@ -238,6 +238,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const [reprocessBusy, setReprocessBusy] = useState(false);
   const [reprocessError, setReprocessError] = useState("");
   const [message, setMessage] = useState("");
+  const [reprocessWarning, setReprocessWarning] = useState("");
   const [queuedBatchId, setQueuedBatchId] = useState<string | null>(null);
   const pollRef = useRef<number | null>(null);
 
@@ -444,6 +445,7 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
   const openSelectDialog = () => {
     if (reprocessBlocked || liveTiles.length === 0) return;
     setMessage("");
+    setReprocessWarning("");
     setError("");
     setSelectedLiveGids([]);
     setSelectOpen(true);
@@ -485,13 +487,19 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
     if (selectedLiveGids.length === 0) return;
     setReprocessBusy(true);
     setReprocessError("");
+    setReprocessWarning("");
     try {
       const res = await authenticatedFetch(endpoints.productLiveReprocess(productId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mediaGids: selectedLiveGids, steps }),
       });
-      const payload = await parseApiResponse<{ batchId?: string; imageCount?: number }>(res);
+      const payload = await parseApiResponse<{
+        batchId?: string;
+        imageCount?: number;
+        warnings?: string[];
+      }>(res);
+      setReprocessWarning(payload.warnings?.join(" ") ?? "");
       setMessage(
         `Queued ${payload.imageCount ?? selectedLiveGids.length} live image(s) for reprocess. They will publish automatically when processing finishes. This apply cannot be undone - use Revert on a stored version to restore a complete previous image set.`,
       );
@@ -611,6 +619,12 @@ export default function ProductVersionsPage({ productId: productIdProp }: Props 
             {queuedBatchId ? (
               <s-button onClick={() => navigateApp(`/jobs/${queuedBatchId}`)}>View job</s-button>
             ) : null}
+          </s-banner>
+        ) : null}
+
+        {reprocessWarning ? (
+          <s-banner tone="warning" heading="Some images skipped">
+            <s-paragraph>{reprocessWarning}</s-paragraph>
           </s-banner>
         ) : null}
 
