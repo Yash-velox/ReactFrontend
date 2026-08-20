@@ -90,6 +90,10 @@ export default function ProductVersionsHubPage() {
     void load();
   }, [load]);
 
+  const handleSearch = useCallback(() => {
+    setQuery(search);
+  }, [search]);
+
   return (
     <AonePage heading="Product Versions">
       <s-stack direction="block" gap="base">
@@ -133,12 +137,18 @@ export default function ProductVersionsHubPage() {
             placeholder="Title, handle, or Shopify product GID"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
             aria-label="Search published products"
             style={{ minWidth: "16rem" }}
           />
           <s-button
             variant="primary"
-            onClick={() => setQuery(search)}
+            onClick={handleSearch}
           >
             Search
           </s-button>
