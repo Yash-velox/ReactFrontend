@@ -81,6 +81,7 @@ export type Batch = {
   processingProductCount: number;
   completedProductCount: number;
   failedProductCount: number;
+  publishedProductCount?: number;
   retryingProductCount: number;
   settingsSnapshotJson?: Record<string, unknown> | null;
   errorSummary?: string | null;

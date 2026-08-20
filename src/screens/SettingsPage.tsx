@@ -27,7 +27,7 @@ export default function SettingsPage() {
       const data = await parseApiResponse<Settings>(response);
       setAutoSyncEnabled(data.autoSyncEnabled);
       setAutoPublishProcessedImages(Boolean(data.autoPublishProcessedImages));
-      setBatchIntervalMinutes(String(data.batchIntervalMinutes));
+      setBatchIntervalMinutes(String(Math.max(1, data.batchIntervalMinutes)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load settings");
     } finally {
@@ -42,8 +42,8 @@ export default function SettingsPage() {
   const validate = (): boolean => {
     const interval = Number(batchIntervalMinutes);
 
-    if (!Number.isFinite(interval) || !Number.isInteger(interval) || interval < 0) {
-      setValidationError("Wait must be 0 or a whole number of minutes.");
+    if (!Number.isFinite(interval) || !Number.isInteger(interval) || interval < 1) {
+      setValidationError("Wait must be a whole number of minutes (minimum 1).");
       return false;
     }
     setValidationError("");
@@ -68,7 +68,7 @@ export default function SettingsPage() {
       const data = await parseApiResponse<Settings>(response);
       setAutoSyncEnabled(data.autoSyncEnabled);
       setAutoPublishProcessedImages(Boolean(data.autoPublishProcessedImages));
-      setBatchIntervalMinutes(String(data.batchIntervalMinutes));
+      setBatchIntervalMinutes(String(Math.max(1, data.batchIntervalMinutes)));
       setSuccess("Saved.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save settings");
@@ -123,13 +123,16 @@ export default function SettingsPage() {
                     id="batch-interval"
                     className="aone-input aone-settings-input"
                     type="number"
-                    min={0}
+                    min={1}
                     step={1}
                     value={batchIntervalMinutes}
                     onChange={(e) => setBatchIntervalMinutes(e.target.value)}
                     disabled={!autoSyncEnabled}
                   />
-                  <p className="aone-field-hint">0 = process as soon as a webhook is queued.</p>
+                  <p className="aone-field-hint">
+                    Minutes to wait after the oldest Secondary Queue item before creating an
+                    automatic batch. Minimum 1.
+                  </p>
                 </div>
               </div>
             </s-section>

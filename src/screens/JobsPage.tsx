@@ -569,7 +569,7 @@ export default function JobsPage() {
                     <th>Products</th>
                     <th>Images</th>
                     <th>Completed</th>
-                    <th>Failed</th>
+                    <th>Published</th>
                     <th>Retrying</th>
                     <th>Created</th>
                     <th>Completed at</th>
@@ -599,7 +599,9 @@ export default function JobsPage() {
                       <td>{batch.productCount}</td>
                       <td>{batch.imageCount}</td>
                       <td>{batch.completedProductCount}</td>
-                      <td>{batch.failedProductCount}</td>
+                      <td>
+                        {batch.publishedProductCount ?? 0} / {batch.productCount}
+                      </td>
                       <td>{batch.retryingProductCount}</td>
                       <td>
                         <Timestamp value={batch.createdAt} />
