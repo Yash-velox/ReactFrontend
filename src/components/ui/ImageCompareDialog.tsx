@@ -107,7 +107,7 @@ export default function ImageCompareDialog({ image, onClose }: Props) {
           </s-button>
         </div>
 
-        <div className="aone-compare-frame aone-checkerboard">
+        <div className="aone-compare-frame">
           {showingAfter ? (
             outputLoading ? (
               <s-paragraph>Loading processed image…</s-paragraph>

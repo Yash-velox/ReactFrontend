@@ -708,6 +708,7 @@ button.aone-stepper-hit:focus-visible {
   padding: var(--aone-space-2);
   border: 1px solid var(--aone-border);
   overflow: hidden;
+  background-color: #ffffff;
 }
 
 .aone-compare-image {
