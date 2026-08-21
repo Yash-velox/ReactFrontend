@@ -110,7 +110,8 @@ export default function SettingsPage() {
                   <span className="aone-settings-row-body">
                     <span className="aone-settings-row-title">Enable Auto Sync</span>
                     <span className="aone-settings-row-desc">
-                      Automatically batch queued products.
+                      Listen to Shopify product updates and automatically batch queued products.
+                      When off, product-update webhooks are ignored.
                     </span>
                   </span>
                 </label>
