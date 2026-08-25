@@ -82,8 +82,11 @@ export default function ProductPickerDialog({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [productType, setProductType] = useState("");
   const [status, setStatus] = useState("");
+  /** "" = all, "true" = eligible media, "false" = no eligible media */
+  const [hasImages, setHasImages] = useState<"" | "true" | "false">("");
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [imagesMenuOpen, setImagesMenuOpen] = useState(false);
 
   const [selected, setSelected] = useState<Map<string, string | undefined>>(new Map());
   const [hoverPreviewUrl, setHoverPreviewUrl] = useState<string | null>(null);
@@ -91,6 +94,7 @@ export default function ProductPickerDialog({
   const initialized = useRef(false);
   const typeMenuRef = useRef<HTMLDivElement | null>(null);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
+  const imagesMenuRef = useRef<HTMLDivElement | null>(null);
 
   const hideHoverPreview = useCallback(() => setHoverPreviewUrl(null), []);
 
@@ -122,25 +126,28 @@ export default function ProductPickerDialog({
       setDebouncedSearch("");
       setProductType("");
       setStatus("");
+      setHasImages("");
       setPage(1);
       setError("");
       setNotice("");
       setTypeMenuOpen(false);
       setStatusMenuOpen(false);
+      setImagesMenuOpen(false);
       initialized.current = true;
     }
   }, [open, initialSelected]);
 
   useEffect(() => {
-    if (!typeMenuOpen && !statusMenuOpen) return;
+    if (!typeMenuOpen && !statusMenuOpen && !imagesMenuOpen) return;
     const onDocClick = (event: MouseEvent) => {
       const target = event.target as Node;
       if (typeMenuRef.current && !typeMenuRef.current.contains(target)) setTypeMenuOpen(false);
       if (statusMenuRef.current && !statusMenuRef.current.contains(target)) setStatusMenuOpen(false);
+      if (imagesMenuRef.current && !imagesMenuRef.current.contains(target)) setImagesMenuOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [typeMenuOpen, statusMenuOpen]);
+  }, [typeMenuOpen, statusMenuOpen, imagesMenuOpen]);
 
   const loadTypes = useCallback(async () => {
     try {
@@ -159,12 +166,11 @@ export default function ProductPickerDialog({
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(PAGE_SIZE),
-        // Same eligibility as manual batch create: skip SKUs with no processable images.
-        hasImages: "true",
       });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (productType) params.set("productType", productType);
       if (status) params.set("status", status);
+      if (hasImages) params.set("hasImages", hasImages);
       const res = await authenticatedFetch(`${endpoints.catalogProducts}?${params}`);
       const data = await parseApiResponse<ListResponse>(res);
       setItems(data.items ?? []);
@@ -175,7 +181,7 @@ export default function ProductPickerDialog({
     } finally {
       setLoading(false);
     }
-  }, [authenticatedFetch, page, debouncedSearch, productType, status]);
+  }, [authenticatedFetch, page, debouncedSearch, productType, status, hasImages]);
 
   useEffect(() => {
     if (!open) return;
@@ -189,7 +195,7 @@ export default function ProductPickerDialog({
 
   useEffect(() => {
     setHoverPreviewUrl(null);
-  }, [page, debouncedSearch, productType, status]);
+  }, [page, debouncedSearch, productType, status, hasImages]);
 
   const selectedCount = selected.size;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -197,7 +203,10 @@ export default function ProductPickerDialog({
     () => items.length > 0 && items.every((p) => selected.has(p.shopifyProductGid)),
     [items, selected],
   );
-  const hasFilters = Boolean(productType || status || debouncedSearch);
+  const hasFilters = Boolean(productType || status || hasImages || debouncedSearch);
+
+  const imagesFilterLabel =
+    hasImages === "true" ? "Has images" : hasImages === "false" ? "No images" : "";
 
   const toggleOne = (product: CatalogProduct) => {
     setSelected((prev) => {
@@ -225,10 +234,11 @@ export default function ProductPickerDialog({
     setError("");
     setNotice("");
     try {
-      const params = new URLSearchParams({ hasImages: "true" });
+      const params = new URLSearchParams();
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (productType) params.set("productType", productType);
       if (status) params.set("status", status);
+      if (hasImages) params.set("hasImages", hasImages);
       const res = await authenticatedFetch(`${endpoints.catalogProductMatchingGids}?${params}`);
       const data = await parseApiResponse<MatchingGidsResponse>(res);
       if (data.manualBatchProductLimit) setBatchLimit(data.manualBatchProductLimit);
@@ -256,6 +266,7 @@ export default function ProductPickerDialog({
   const clearFilters = () => {
     setProductType("");
     setStatus("");
+    setHasImages("");
     setSearch("");
     setDebouncedSearch("");
     setPage(1);
@@ -319,6 +330,19 @@ export default function ProductPickerDialog({
               <span aria-hidden="true">×</span>
             </button>
           ) : null}
+          {imagesFilterLabel ? (
+            <button
+              type="button"
+              className="aone-picker-filter-chip"
+              onClick={() => {
+                setHasImages("");
+                setPage(1);
+              }}
+            >
+              Images: {imagesFilterLabel}
+              <span aria-hidden="true">×</span>
+            </button>
+          ) : null}
 
           <div className="aone-picker-filter-menu" ref={typeMenuRef}>
             <button
@@ -329,6 +353,7 @@ export default function ProductPickerDialog({
               onClick={() => {
                 setTypeMenuOpen((v) => !v);
                 setStatusMenuOpen(false);
+                setImagesMenuOpen(false);
               }}
             >
               {productType ? "Change type" : "Type"}
@@ -374,6 +399,7 @@ export default function ProductPickerDialog({
               onClick={() => {
                 setStatusMenuOpen((v) => !v);
                 setTypeMenuOpen(false);
+                setImagesMenuOpen(false);
               }}
             >
               Status
@@ -393,6 +419,47 @@ export default function ProductPickerDialog({
                     }}
                   >
                     {value ? `Status: ${value}` : "All statuses"}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="aone-picker-filter-menu" ref={imagesMenuRef}>
+            <button
+              type="button"
+              className={`aone-picker-filter-add${imagesMenuOpen ? " is-open" : ""}`}
+              aria-expanded={imagesMenuOpen}
+              aria-haspopup="listbox"
+              onClick={() => {
+                setImagesMenuOpen((v) => !v);
+                setTypeMenuOpen(false);
+                setStatusMenuOpen(false);
+              }}
+            >
+              {hasImages ? "Change images" : "Images"}
+              <FilterCaret />
+            </button>
+            {imagesMenuOpen ? (
+              <div className="aone-picker-menu" role="listbox">
+                {(
+                  [
+                    ["", "All products"],
+                    ["true", "Images: Has images"],
+                    ["false", "Images: No images"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value || "all"}
+                    type="button"
+                    className="aone-picker-menu-item"
+                    onClick={() => {
+                      setHasImages(value);
+                      setPage(1);
+                      setImagesMenuOpen(false);
+                    }}
+                  >
+                    {label}
                   </button>
                 ))}
               </div>
@@ -445,7 +512,7 @@ export default function ProductPickerDialog({
             <div className="aone-picker-empty">
               <EmptyState
                 title="No products found"
-                description="Only products with images are listed. Try another search, clear filters, or sync your catalog on the Products page."
+                description="Try another search, clear filters, or sync your catalog on the Products page."
               />
             </div>
           ) : (
