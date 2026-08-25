@@ -159,6 +159,8 @@ export default function ProductPickerDialog({
       const params = new URLSearchParams({
         page: String(page),
         pageSize: String(PAGE_SIZE),
+        // Same eligibility as manual batch create: skip SKUs with no processable images.
+        hasImages: "true",
       });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (productType) params.set("productType", productType);
@@ -223,7 +225,7 @@ export default function ProductPickerDialog({
     setError("");
     setNotice("");
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ hasImages: "true" });
       if (debouncedSearch) params.set("search", debouncedSearch);
       if (productType) params.set("productType", productType);
       if (status) params.set("status", status);
@@ -443,7 +445,7 @@ export default function ProductPickerDialog({
             <div className="aone-picker-empty">
               <EmptyState
                 title="No products found"
-                description="Try another search, clear filters, or sync your catalog on the Products page."
+                description="Only products with images are listed. Try another search, clear filters, or sync your catalog on the Products page."
               />
             </div>
           ) : (
