@@ -65,6 +65,11 @@ export type SecondaryQueueItem = {
   updatedAt: string;
 };
 
+export type BatchSummary = {
+  completedProductCount: number;
+  activeBatchCount: number;
+};
+
 export type Batch = {
   id: string;
   triggerType: string;

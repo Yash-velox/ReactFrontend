@@ -38,6 +38,7 @@ export const endpoints = {
   secondaryQueueItem: (itemId: string) => `${API_BASE_URL}/api/secondary-queue/${itemId}`,
 
   // Week 2 - batches
+  batchesSummary: `${API_BASE_URL}/api/batches/summary`,
   batchesList: `${API_BASE_URL}/api/batches`,
   batchesManual: `${API_BASE_URL}/api/batches/manual`,
   batchDetail: (batchId: string) => `${API_BASE_URL}/api/batches/${batchId}`,

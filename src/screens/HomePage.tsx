@@ -10,7 +10,7 @@ import { getStatusConfig } from "../components/ui/StatusBadge";
 import { endpoints, tunnelBypassHeaders } from "../services/url-schemas";
 import { useAuthenticatedFetch } from "../services/useAuthenticatedFetch";
 import type { PromptProductTypeListItem } from "../types/prompts";
-import type { Batch, SecondaryQueueSummary, SyncStatus } from "../types/week2";
+import type { BatchSummary, SecondaryQueueSummary, SyncStatus } from "../types/week2";
 import { parseApiResponse } from "../utils/api";
 
 type HealthState = "checking" | "ok" | "down";
@@ -18,7 +18,7 @@ type HealthState = "checking" | "ok" | "down";
 type DashboardData = {
   syncStatus: SyncStatus;
   secondarySummary: SecondaryQueueSummary;
-  batches: Batch[];
+  batchSummary: BatchSummary;
   hasEnabledPrompt: boolean;
   hasPublishedVersions: boolean;
 };
@@ -64,14 +64,14 @@ export default function HomePage() {
     if (pollInFlight.current) return;
     pollInFlight.current = true;
     try {
-      const [syncRes, secondaryRes, batchesRes] = await Promise.all([
+      const [syncRes, secondaryRes, batchSummaryRes] = await Promise.all([
         authenticatedFetch(endpoints.syncStatus),
         authenticatedFetch(endpoints.secondaryQueueSummary),
-        authenticatedFetch(`${endpoints.batchesList}?page=1&pageSize=50`),
+        authenticatedFetch(endpoints.batchesSummary),
       ]);
       const syncStatus = await parseApiResponse<SyncStatus>(syncRes);
       const secondarySummary = await parseApiResponse<SecondaryQueueSummary>(secondaryRes);
-      const batchesPayload = await parseApiResponse<{ items: Batch[] }>(batchesRes);
+      const batchSummary = await parseApiResponse<BatchSummary>(batchSummaryRes);
 
       const [promptsResult, versionsResult] = await Promise.allSettled([
         authenticatedFetch(`${endpoints.promptProductTypes}?page=1&pageSize=100`).then((res) =>
@@ -97,7 +97,7 @@ export default function HomePage() {
       setData({
         syncStatus,
         secondarySummary,
-        batches: batchesPayload.items ?? [],
+        batchSummary,
         hasEnabledPrompt,
         hasPublishedVersions,
       });
@@ -117,7 +117,7 @@ export default function HomePage() {
   const hasActiveWork =
     Boolean(data?.secondarySummary.pending) ||
     Boolean(data?.secondarySummary.claimed) ||
-    Boolean(data?.batches.some((b) => b.status === "PROCESSING" || b.status === "QUEUED"));
+    Boolean(data?.batchSummary.activeBatchCount);
 
   useEffect(() => {
     if (!hasActiveWork) return;
@@ -131,10 +131,8 @@ export default function HomePage() {
   const healthLabel =
     health === "checking" ? "Checking…" : health === "ok" ? "Online" : "Offline";
 
-  const activeBatches =
-    data?.batches.filter((b) => b.status === "PROCESSING" || b.status === "QUEUED").length ?? 0;
-  const completedImages =
-    data?.batches.reduce((sum, b) => sum + b.completedProductCount, 0) ?? 0;
+  const activeBatches = data?.batchSummary.activeBatchCount ?? 0;
+  const completedProducts = data?.batchSummary.completedProductCount ?? 0;
   const latestSync = data?.syncStatus.latestRun;
   const syncConfig = latestSync ? getStatusConfig(latestSync.status) : null;
 
@@ -143,8 +141,8 @@ export default function HomePage() {
     const synced = (data?.syncStatus.productCount ?? 0) > 0;
     const promptsReady = Boolean(data?.hasEnabledPrompt);
     const processed =
-      Boolean(data?.batches.some((b) => b.completedProductCount > 0 || b.status === "COMPLETED")) ||
-      Boolean(data?.batches.some((b) => b.status === "PROCESSING" || b.status === "QUEUED"));
+      (data?.batchSummary.completedProductCount ?? 0) > 0 ||
+      (data?.batchSummary.activeBatchCount ?? 0) > 0;
     const published = Boolean(data?.hasPublishedVersions);
 
     const flags = [connected, synced, promptsReady, processed, published];
@@ -238,7 +236,7 @@ export default function HomePage() {
               badgeTone={activeBatches ? "info" : "neutral"}
               badgeLabel={activeBatches ? "Processing" : "Idle"}
             />
-            <MetricCard label="Products Processed" value={completedImages} />
+            <MetricCard label="Products Processed" value={completedProducts} />
           </div>
         )}
       </s-section>
